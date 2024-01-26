@@ -2,11 +2,12 @@ package plugins
 
 import "github.com/AmirSolt/town-watch/server"
 
-type Plugins struct{}
+type Plugins struct {
+	Env *Env
+}
 
 func LoadPlugins(server *server.Server) *Plugins {
 	plugins := Plugins{}
-	plugins.loadHelloPlugin(server)
 
 	return &plugins
 }

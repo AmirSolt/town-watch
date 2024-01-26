@@ -9,7 +9,7 @@ type Routes struct{}
 
 func LoadRoutes(server *server.Server, plugins *plugins.Plugins) *Routes {
 	routes := Routes{}
-	routes.index(server)
+	routes.index(server, plugins)
 
 	return &routes
 }
