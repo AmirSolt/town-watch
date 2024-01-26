@@ -1,11 +1,75 @@
 package plugins
 
 import (
-	"github.com/AmirSolt/town-watch/server"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"net/url"
+	"time"
+
+	"github.com/go-playground/validator/v10"
 )
 
-func (plugins *Plugins) loadReports(server *server.Server) {
-	// models.Report
+type Reporter struct {
+}
+
+type ArcgisResponse struct {
+	Features []ArcgisReport `json:"features"`
+}
+
+type ArcgisReport struct {
+	Attributes ArcgisAttributes `json:"attributes"`
+	Geometry   ArcgisGeometry   `json:"geometry"`
+}
+
+type ArcgisGeometry struct {
+	X float32 `json:"x"`
+	Y float32 `json:"y"`
+}
+
+type ArcgisAttributes struct {
+	ObjectId         string    `json:"OBJECTID"`
+	OccDateEst       time.Time `json:"OCC_DATE_EST"`
+	OccDateAgol      time.Time `json:"OCC_DATE_AGOL"`
+	ReportDateEst    time.Time `json:"REPORT_DATE_EST"`
+	ReportDateAgol   time.Time `json:"REPORT_DATE_AGOL"`
+	EventUniqueId    string    `json:"EVENT_UNIQUE_ID"`
+	Division         string    `json:"DIVISION"`
+	PremisesType     string    `json:"PREMISES_TYPE"`
+	Hour             int16     `json:"HOUR"`
+	CrimeType        string    `json:"CRIME_TYPE"`
+	Hood158          string    `json:"HOOD_158"`
+	Neighbourhood158 string    `json:"NEIGHBOURHOOD_158"`
+	Hood140          string    `json:"HOOD_140"`
+	Neighbourhood140 string    `json:"NEIGHBOURHOOD_140"`
+	Count            int16     `json:"COUNT_"`
+	LongWgs84        float32   `json:"LONG_WGS84"`
+	LatWgs84         float32   `json:"LAT_WGS84"`
+	LocationCategory string    `json:"LOCATION_CATEGORY"`
+}
+
+func (reporter *Reporter) FetchReports(plugins *Plugins, fromDate time.Time, toDate time.Time) (*ArcgisResponse, error) {
+	toDateStr := fmt.Sprintf("AND OccDateAgol <= date'${toDate} 00:00:00'")
+	where := fmt.Sprintf("OccDateAgol >= date '${fromDateStr} 00:00:00' %s", toDateStr)
+	endpoint := fmt.Sprintf("https://services.arcgis.com/S9th0jAJ7bqgIRjw/ArcGIS/rest/services/YTD_CRIME_WM/FeatureServer/0/query?where=%s&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&relationParam=&returnGeodetic=false&outFields=*&returnGeometry=true&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&defaultSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pjson&token=", url.QueryEscape(where))
+	resp, err := http.Get(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("error making request to Arcgis API: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var response ArcgisResponse
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("error decoding ArcgisResponse: %w", err)
+	}
+
+	validate := validator.New(validator.WithRequiredStructEnabled())
+	vErr := validate.Struct(response)
+	if vErr != nil {
+		log.Fatal("Error a variable is missing from .env")
+	}
+	return &response, nil
 }
 
 // let rawReports: any[] = []
