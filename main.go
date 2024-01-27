@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 
-	"github.com/AmirSolt/town-watch/plugins"
 	"github.com/AmirSolt/town-watch/routes"
 	"github.com/AmirSolt/town-watch/server"
 )
@@ -11,8 +10,7 @@ import (
 func main() {
 
 	server := server.LoadServer()
-	plugins := plugins.LoadPlugins(server)
-	routes.LoadRoutes(server, plugins)
+	routes.LoadRoutes(server)
 
 	fmt.Println("=======")
 	fmt.Println("http://localhost:8080")

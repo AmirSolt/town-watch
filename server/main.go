@@ -4,6 +4,7 @@ import "github.com/gin-gonic/gin"
 
 type Server struct {
 	Engine *gin.Engine
+	Env    *Env
 }
 
 func LoadServer() *Server {
@@ -13,6 +14,7 @@ func LoadServer() *Server {
 		Engine: gin.Default(),
 	}
 	server.Engine.LoadHTMLGlob("public/*")
+	server.loadEnv()
 
 	return &server
 }

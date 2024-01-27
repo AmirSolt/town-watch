@@ -1,4 +1,4 @@
-package plugins
+package server
 
 import (
 	"encoding/json"
@@ -10,9 +10,6 @@ import (
 
 	"github.com/go-playground/validator/v10"
 )
-
-type Reporter struct {
-}
 
 type ArcgisResponse struct {
 	Features []ArcgisReport `json:"features"`
@@ -49,7 +46,7 @@ type ArcgisAttributes struct {
 	LocationCategory string    `json:"LOCATION_CATEGORY"`
 }
 
-func (reporter *Reporter) FetchReports(plugins *Plugins, fromDate time.Time, toDate time.Time) (*ArcgisResponse, error) {
+func (server *Server) FetchReports(fromDate time.Time, toDate time.Time) (*ArcgisResponse, error) {
 	toDateStr := fmt.Sprintf("AND OccDateAgol <= date'${toDate} 00:00:00'")
 	where := fmt.Sprintf("OccDateAgol >= date '${fromDateStr} 00:00:00' %s", toDateStr)
 	endpoint := fmt.Sprintf("https://services.arcgis.com/S9th0jAJ7bqgIRjw/ArcGIS/rest/services/YTD_CRIME_WM/FeatureServer/0/query?where=%s&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&relationParam=&returnGeodetic=false&outFields=*&returnGeometry=true&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&defaultSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pjson&token=", url.QueryEscape(where))

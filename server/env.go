@@ -1,4 +1,4 @@
-package plugins
+package server
 
 import (
 	"log"
@@ -12,13 +12,15 @@ type Env struct {
 	IS_PROD string `validate:"boolean"`
 }
 
-func (env *Env) loadEnv(plugins *Plugins) {
+func (server *Server) loadEnv() {
 
 	if err := godotenv.Load(); err != nil {
 		log.Fatal("Error loading .env file")
 	}
 
-	env.IS_PROD = os.Getenv("IS_PROD")
+	env := Env{
+		IS_PROD: os.Getenv("IS_PROD"),
+	}
 
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	err := validate.Struct(env)
@@ -26,5 +28,5 @@ func (env *Env) loadEnv(plugins *Plugins) {
 		log.Fatal("Error a variable is missing from .env")
 	}
 
-	plugins.Env = env
+	server.Env = &env
 }
