@@ -3,6 +3,7 @@ package server
 import (
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/joho/godotenv"
@@ -14,7 +15,7 @@ type Env struct {
 
 func (server *Server) loadEnv() {
 
-	if err := godotenv.Load(); err != nil {
+	if err := godotenv.Load(filepath.Join(server.RootDir, ".env")); err != nil {
 		log.Fatal("Error loading .env file")
 	}
 

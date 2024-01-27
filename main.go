@@ -9,7 +9,7 @@ import (
 
 func main() {
 
-	server := server.LoadServer()
+	server := server.LoadServer("./")
 	routes.LoadRoutes(server)
 
 	fmt.Println("=======")

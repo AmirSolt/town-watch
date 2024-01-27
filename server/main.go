@@ -1,19 +1,27 @@
 package server
 
-import "github.com/gin-gonic/gin"
+import (
+	"path/filepath"
+
+	"github.com/gin-gonic/gin"
+)
 
 type Server struct {
-	Engine *gin.Engine
-	Env    *Env
+	RootDir string
+	Engine  *gin.Engine
+	Env     *Env
 }
 
-func LoadServer() *Server {
+func LoadServer(rootDir string) *Server {
 
 	// gin.DisableConsoleColor()
 	server := Server{
-		Engine: gin.Default(),
+		RootDir: rootDir,
+		Engine:  gin.Default(),
 	}
-	server.Engine.LoadHTMLGlob("public/*")
+
+	server.Engine.LoadHTMLGlob(filepath.Join(server.RootDir, "public/*"))
+
 	server.loadEnv()
 
 	return &server
