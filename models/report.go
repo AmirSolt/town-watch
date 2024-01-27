@@ -22,11 +22,11 @@ const (
 )
 
 type Report struct {
-	OccurAt      *time.Time "db:created_at"
-	Neighborhood string     "db:neighborhood"
-	LocationType string     "db:location_type"
-	CrimeType    CrimeType  "db:crime_type"
-	Region       Region     "db:region"
-	Lat          string     "db:lat"
-	Long         string     "db:long"
+	OccurAt      time.Time `db:"created_at"`
+	Neighborhood string    `db:"neighborhood"`
+	LocationType string    `db:"location_type"`
+	CrimeType    CrimeType `db:"crime_type"`
+	Region       Region    `db:"region"`
+	Lat          float32   `db:"lat"`
+	Long         float32   `db:"long"`
 }

@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/AmirSolt/town-watch/models"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -26,30 +27,30 @@ type ArcgisGeometry struct {
 }
 
 type ArcgisAttributes struct {
-	ObjectId         string    `json:"OBJECTID" validate:"required"`
-	OccDateEst       time.Time `json:"OCC_DATE_EST" validate:"required"`
-	OccDateAgol      time.Time `json:"OCC_DATE_AGOL" validate:"required"`
-	ReportDateEst    time.Time `json:"REPORT_DATE_EST" validate:"required"`
-	ReportDateAgol   time.Time `json:"REPORT_DATE_AGOL" validate:"required"`
-	EventUniqueId    string    `json:"EVENT_UNIQUE_ID"`
-	Division         string    `json:"DIVISION"`
-	PremisesType     string    `json:"PREMISES_TYPE"`
-	Hour             int16     `json:"HOUR" validate:"required"`
-	CrimeType        string    `json:"CRIME_TYPE" validate:"required"`
-	Hood158          string    `json:"HOOD_158"`
-	Neighbourhood158 string    `json:"NEIGHBOURHOOD_158"`
-	Hood140          string    `json:"HOOD_140"`
-	Neighbourhood140 string    `json:"NEIGHBOURHOOD_140"`
-	Count            int16     `json:"COUNT_"`
-	LongWgs84        float32   `json:"LONG_WGS84"`
-	LatWgs84         float32   `json:"LAT_WGS84"`
-	LocationCategory string    `json:"LOCATION_CATEGORY"`
+	EventUniqueId    string  `json:"EVENT_UNIQUE_ID" validate:"required"`
+	OccDateEst       int64   `json:"OCC_DATE_EST" validate:"required"`
+	OccDateAgol      int64   `json:"OCC_DATE_AGOL" validate:"required"`
+	ReportDateEst    int64   `json:"REPORT_DATE_EST" validate:"required"`
+	ReportDateAgol   int64   `json:"REPORT_DATE_AGOL" validate:"required"`
+	Division         string  `json:"DIVISION"`
+	PremisesType     string  `json:"PREMISES_TYPE"`
+	Hour             int16   `json:"HOUR" validate:"required"`
+	CrimeType        string  `json:"CRIME_TYPE" validate:"required"`
+	Hood158          string  `json:"HOOD_158"`
+	Neighbourhood158 string  `json:"NEIGHBOURHOOD_158"`
+	Hood140          string  `json:"HOOD_140"`
+	Neighbourhood140 string  `json:"NEIGHBOURHOOD_140"`
+	Count            int16   `json:"COUNT_"`
+	LongWgs84        float32 `json:"LONG_WGS84"`
+	LatWgs84         float32 `json:"LAT_WGS84"`
+	LocationCategory string  `json:"LOCATION_CATEGORY"`
 }
 
 func (server *Server) FetchReports(fromDate time.Time, toDate time.Time) (*ArcgisResponse, error) {
-	toDateStr := fmt.Sprintf("AND OccDateAgol <= date'%s'", convertToArcgisQueryTime(toDate))
-	where := fmt.Sprintf("OccDateAgol >= date '%s' %s", convertToArcgisQueryTime(toDate), toDateStr)
+	toDateStr := fmt.Sprintf("AND OCC_DATE_AGOL <= date '%s'", convertToArcgisQueryTime(toDate))
+	where := fmt.Sprintf("OCC_DATE_AGOL >= date '%s' %s", convertToArcgisQueryTime(fromDate), toDateStr)
 	endpoint := fmt.Sprintf("https://services.arcgis.com/S9th0jAJ7bqgIRjw/ArcGIS/rest/services/YTD_CRIME_WM/FeatureServer/0/query?where=%s&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&relationParam=&returnGeodetic=false&outFields=*&returnGeometry=true&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&defaultSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pjson&token=", url.QueryEscape(where))
+
 	resp, err := http.Get(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("error making request to Arcgis API: %w", err)
@@ -64,9 +65,27 @@ func (server *Server) FetchReports(fromDate time.Time, toDate time.Time) (*Arcgi
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	vErr := validate.Struct(response)
 	if vErr != nil {
-		log.Fatal("Error a variable is missing from .env")
+		log.Fatal("Error Arcgis response did not pass validator.")
 	}
 	return &response, nil
+}
+
+func (server *Server) ConvertArcgisResponseToReports(arcgisResponse *ArcgisResponse) *[]models.Report {
+	reports := []models.Report{}
+
+	for _, arcReport := range arcgisResponse.Features {
+		reports = append(reports, models.Report{
+			OccurAt:      time.Unix(arcReport.Attributes.OccDateAgol/1000.0, 0),
+			Neighborhood: arcReport.Attributes.Neighbourhood158,
+			LocationType: arcReport.Attributes.LocationCategory,
+			CrimeType:    models.CrimeType(arcReport.Attributes.LocationCategory),
+			Region:       models.Region(models.TORONTO),
+			Lat:          arcReport.Geometry.X,
+			Long:         arcReport.Geometry.Y,
+		})
+	}
+
+	return &reports
 }
 
 func convertToArcgisQueryTime(time time.Time) string {
@@ -78,33 +97,6 @@ func convertToArcgisQueryTime(time time.Time) string {
 		time.Hour(),
 		time.Second())
 }
-
-// let rawReports: any[] = []
-
-// const DATE_TYPE = "REPORT_DATE_AGOL"
-
-// const fromDateStr = UTCToStr(fromDate)
-// const query_date_str = `${DATE_TYPE} >= date '${fromDateStr} 00:00:00'`
-// const whereStatementUrlified = encodeURIComponent(query_date_str)
-// const rawReportsUrl = `https://services.arcgis.com/S9th0jAJ7bqgIRjw/ArcGIS/rest/services/YTD_CRIME_WM/FeatureServer/0/query?where=${whereStatementUrlified}&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&relationParam=&returnGeodetic=false&outFields=*&returnGeometry=true&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&defaultSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pjson&token=`
-// const response = await fetch(rawReportsUrl)
-// let data = await response.json() as any
-// if (response.ok) {
-// 	rawReports = data["features"] as any[]
-// } else {
-// 	throw fastify.httpErrors.conflict(JSON.stringify(data))
-// }
-
-// // filter null fields
-// rawReports = rawReports.filter(raw => {
-// 	return (
-// 		raw["attributes"] != null ||
-// 		raw["attributes"]["CRIME_TYPE"] != null ||
-// 		raw["attributes"][DATE_TYPE] != null ||
-// 		raw["attributes"]["HOUR"] != null ||
-// 		raw["geometry"] != null
-// 	)
-// })
 
 // function getInsertValuesStr(rawReports: any[]) {
 // 	return rawReports.map(raw => {
