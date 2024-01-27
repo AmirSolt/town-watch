@@ -10,6 +10,7 @@ type Server struct {
 	RootDir string
 	Engine  *gin.Engine
 	Env     *Env
+	DB      *DB
 }
 
 func LoadServer(rootDir string) *Server {
