@@ -13,17 +13,18 @@ type Server struct {
 	DB      *DB
 }
 
-func LoadServer(rootDir string) *Server {
+func (server *Server) LoadServer() {
 
 	// gin.DisableConsoleColor()
-	server := Server{
-		RootDir: rootDir,
-		Engine:  gin.Default(),
-	}
+	server.Engine = gin.Default()
 
 	server.Engine.LoadHTMLGlob(filepath.Join(server.RootDir, "public/*"))
 
 	server.loadEnv()
 
-	return &server
+	server.loadDB()
+}
+
+func (server *Server) KillServer() {
+	server.killDB()
 }

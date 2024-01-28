@@ -1,15 +1,32 @@
 package server
 
-type DB struct {
-}
+import (
+	"log"
 
-const schema string = ``
+	"github.com/jmoiron/sqlx"
+	_ "github.com/lib/pq"
+)
+
+type DB sqlx.DB
+
+const schema string = `CREATE TABLE place (
+	id SERIAL
+    country text,
+    city text NULL,
+    telcode integer);`
 
 func (server *Server) loadDB() {
-	// db, err := sqlx.Connect("postgres", "user=foo dbname=bar sslmode=disable")
-	// if err != nil {
-	// 	log.Fatalln(err)
-	// }
+	dbEngine := sqlx.MustConnect("postgres", server.Env.DATABASE_URL)
 
-	// db.MustExec(schema)
+	if err := dbEngine.Ping(); err != nil {
+		log.Fatalln(err)
+	}
+
+	dbEngine.MustExec(schema)
+
+	server.DB = (*DB)(dbEngine)
+}
+
+func (server *Server) killDB() {
+	server.DB.Close()
 }

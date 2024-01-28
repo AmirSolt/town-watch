@@ -23,7 +23,10 @@ func TestFetchReports(t *testing.T) {
 		{inputFromDate: time.Now().UTC().AddDate(0, 0, 2), inputToDate: time.Now().UTC().AddDate(0, 0, 0), want: false, ok: true},
 	}
 
-	server := server.LoadServer("../")
+	server := server.Server{
+		RootDir: "../",
+	}
+	server.LoadServer()
 
 	for i, tc := range tests {
 		got, err := server.FetchReports(tc.inputFromDate, tc.inputToDate)
@@ -47,7 +50,10 @@ func TestConvertArcgisResponseToReports(t *testing.T) {
 		{inputFromDate: time.Now().UTC().AddDate(0, 0, -2), inputToDate: time.Now().UTC().AddDate(0, 0, -1), want: true, ok: true},
 	}
 
-	server := server.LoadServer("../")
+	server := server.Server{
+		RootDir: "../",
+	}
+	server.LoadServer()
 
 	for i, tc := range tests {
 		arcReports, err := server.FetchReports(tc.inputFromDate, tc.inputToDate)

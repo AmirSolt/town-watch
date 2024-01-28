@@ -10,7 +10,8 @@ import (
 )
 
 type Env struct {
-	IS_PROD string `validate:"boolean"`
+	IS_PROD      string `validate:"boolean"`
+	DATABASE_URL string `validate:"url"`
 }
 
 func (server *Server) loadEnv() {
@@ -20,7 +21,8 @@ func (server *Server) loadEnv() {
 	}
 
 	env := Env{
-		IS_PROD: os.Getenv("IS_PROD"),
+		IS_PROD:      os.Getenv("IS_PROD"),
+		DATABASE_URL: os.Getenv("DATABASE_URL"),
 	}
 
 	validate := validator.New(validator.WithRequiredStructEnabled())

@@ -9,12 +9,17 @@ import (
 
 func main() {
 
-	server := server.LoadServer("./")
-	routes.LoadRoutes(server)
+	server := server.Server{
+		RootDir: "./",
+	}
+
+	server.LoadServer()
+	routes.LoadRoutes(&server)
 
 	fmt.Println("=======")
 	fmt.Println("http://localhost:8080")
 	fmt.Println("=======")
 
 	server.Engine.Run()
+	server.KillServer()
 }
