@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/AmirSolt/town-watch/models"
@@ -79,7 +80,7 @@ func (server *Server) ConvertArcgisResponseToReportsParams(arcgisResponse *Arcgi
 		reportsParams = append(reportsParams, models.CreateReportsParams{
 			OccurAt:       pgtype.Timestamptz{Time: time.Unix(secs, 0).UTC(), Valid: true},
 			ExternalSrcID: arcReport.Attributes.EventUniqueId,
-			Neighborhood:  pgtype.Text{String: arcReport.Attributes.Neighbourhood158, Valid: true},
+			Neighborhood:  pgtype.Text{String: removeNeighExtraChars(arcReport.Attributes.Neighbourhood158), Valid: true},
 			LocationType:  pgtype.Text{String: arcReport.Attributes.LocationCategory, Valid: true},
 			CrimeType:     models.CrimeType(arcReport.Attributes.LocationCategory),
 			Region:        models.Region(models.RegionTORONTO),
@@ -114,6 +115,24 @@ func convertToArcgisQueryTime(time time.Time) string {
 		time.Hour(),
 		time.Hour(),
 		time.Second())
+}
+
+func removeNeighExtraChars(inputString string) string {
+	var result strings.Builder
+	flag := false // True when between "(" and ")"
+
+	for _, char := range inputString {
+		if char == '(' {
+			flag = true
+		} else if char == ')' {
+			flag = false
+		} else if !flag {
+			// Write the character to the result if we're not between "(" and ")"
+			result.WriteRune(char)
+		}
+	}
+
+	return result.String()
 }
 
 // function getInsertValuesStr(rawReports: any[]) {
