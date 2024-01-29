@@ -7,7 +7,48 @@ package models
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const createReports = `-- name: CreateReports :exec
+INSERT INTO reports (
+    occur_at,
+    external_src_id,
+    neighborhood,
+    location_type,
+    crime_type,
+    region,
+    point,
+    lat,
+    long
+) VALUES ($1,$2,$3,$4,$5,$6,ST_POINT($7, $8 ,3857),$7,$8)
+`
+
+type CreateReportsParams struct {
+	OccurAt       pgtype.Timestamptz
+	ExternalSrcID string
+	Neighborhood  pgtype.Text
+	LocationType  pgtype.Text
+	CrimeType     CrimeType
+	Region        Region
+	Lat           float64
+	Long          float64
+}
+
+func (q *Queries) CreateReports(ctx context.Context, arg CreateReportsParams) error {
+	_, err := q.db.Exec(ctx, createReports,
+		arg.OccurAt,
+		arg.ExternalSrcID,
+		arg.Neighborhood,
+		arg.LocationType,
+		arg.CrimeType,
+		arg.Region,
+		arg.Lat,
+		arg.Long,
+	)
+	return err
+}
 
 const getUser = `-- name: GetUser :one
 SELECT id, created_at, email FROM users
@@ -15,7 +56,7 @@ WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id int32) (User, error) {
-	row := q.db.QueryRowContext(ctx, getUser, id)
+	row := q.db.QueryRow(ctx, getUser, id)
 	var i User
 	err := row.Scan(&i.ID, &i.CreatedAt, &i.Email)
 	return i, err

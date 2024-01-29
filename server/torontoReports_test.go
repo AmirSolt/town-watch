@@ -60,7 +60,7 @@ func TestConvertArcgisResponseToReports(t *testing.T) {
 		arcReports, err := server.FetchArcgisReports(tc.inputFromDate, tc.inputToDate)
 
 		// new code
-		got := server.ConvertArcgisResponseToReports(arcReports)
+		got := server.ConvertArcgisResponseToReportsParams(arcReports)
 
 		fmt.Println(">>> Reports Len:", len(*got))
 		if (err == nil) != tc.ok || (len(*got) > 0) != tc.want {

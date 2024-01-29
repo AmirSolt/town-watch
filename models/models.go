@@ -5,12 +5,10 @@
 package models
 
 import (
-	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type CrimeType string
@@ -105,8 +103,8 @@ func (ns NullRegion) Value() (driver.Value, error) {
 }
 
 type Notif struct {
-	ID        uuid.UUID
-	CreatedAt time.Time
+	ID        pgtype.UUID
+	CreatedAt pgtype.Timestamptz
 	IsSent    bool
 	IsOpened  bool
 	ScannerID int32
@@ -114,11 +112,11 @@ type Notif struct {
 
 type Report struct {
 	ID            int32
-	CreatedAt     time.Time
-	OccurAt       time.Time
+	CreatedAt     pgtype.Timestamptz
+	OccurAt       pgtype.Timestamptz
 	ExternalSrcID string
-	Neighborhood  sql.NullString
-	LocationType  sql.NullString
+	Neighborhood  pgtype.Text
+	LocationType  pgtype.Text
 	CrimeType     CrimeType
 	Region        Region
 	Point         interface{}
@@ -127,16 +125,16 @@ type Report struct {
 }
 
 type ReportNotif struct {
-	CreatedAt time.Time
-	NotifID   uuid.UUID
+	CreatedAt pgtype.Timestamptz
+	NotifID   pgtype.UUID
 	ReportID  int32
 }
 
 type Scanner struct {
 	ID        int32
-	CreatedAt time.Time
+	CreatedAt pgtype.Timestamptz
 	IsActive  bool
-	Address   sql.NullString
+	Address   pgtype.Text
 	Region    Region
 	Radius    float64
 	Point     interface{}
@@ -147,6 +145,6 @@ type Scanner struct {
 
 type User struct {
 	ID        int32
-	CreatedAt time.Time
+	CreatedAt pgtype.Timestamptz
 	Email     string
 }

@@ -1,15 +1,17 @@
 package server
 
 import (
-	"database/sql"
+	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
 
 	"github.com/AmirSolt/town-watch/models"
 	"github.com/go-playground/validator/v10"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type ArcgisResponse struct {
@@ -69,23 +71,39 @@ func (server *Server) FetchArcgisReports(fromDate time.Time, toDate time.Time) (
 	return &response, nil
 }
 
-func (server *Server) ConvertArcgisResponseToReports(arcgisResponse *ArcgisResponse) *[]models.Report {
-	reports := []models.Report{}
+func (server *Server) ConvertArcgisResponseToReportsParams(arcgisResponse *ArcgisResponse) *[]models.CreateReportsParams {
+	reportsParams := []models.CreateReportsParams{}
 
 	for _, arcReport := range arcgisResponse.Features {
 		secs := int64(arcReport.Attributes.OccDateAgol/1000.0) + int64(arcReport.Attributes.Hour*60*60)
-		reports = append(reports, models.Report{
-			OccurAt:      time.Unix(secs, 0).UTC(),
-			Neighborhood: sql.NullString{String: arcReport.Attributes.Neighbourhood158, Valid: true},
-			LocationType: sql.NullString{String: arcReport.Attributes.LocationCategory, Valid: true},
-			CrimeType:    models.CrimeType(arcReport.Attributes.LocationCategory),
-			Region:       models.Region(models.RegionTORONTO),
-			Lat:          arcReport.Geometry.X,
-			Long:         arcReport.Geometry.Y,
+		reportsParams = append(reportsParams, models.CreateReportsParams{
+			OccurAt:       pgtype.Timestamptz{Time: time.Unix(secs, 0).UTC(), Valid: true},
+			ExternalSrcID: arcReport.Attributes.EventUniqueId,
+			Neighborhood:  pgtype.Text{String: arcReport.Attributes.Neighbourhood158, Valid: true},
+			LocationType:  pgtype.Text{String: arcReport.Attributes.LocationCategory, Valid: true},
+			CrimeType:     models.CrimeType(arcReport.Attributes.LocationCategory),
+			Region:        models.Region(models.RegionTORONTO),
+			Lat:           arcReport.Geometry.X,
+			Long:          arcReport.Geometry.Y,
 		})
 	}
 
-	return &reports
+	return &reportsParams
+}
+
+func (server *Server) CreateReports(reportsParams *[]models.CreateReportsParams) {
+	var failedSize int = 0
+	for _, reportsParam := range *reportsParams {
+		err := server.DB.queries.CreateReports(context.Background(), reportsParam)
+		if err != nil {
+			fmt.Println("ERROR: report failed to insert:", err)
+			failedSize++
+		}
+	}
+
+	if failedSize == len(*reportsParams) {
+		log.Fatalln(">> ERROR: All reports failed to insert.")
+	}
 }
 
 func convertToArcgisQueryTime(time time.Time) string {
