@@ -1,0 +1,76 @@
+-- Amirali Soltani
+-- 2024-01-29
+CREATE EXTENSION "postgis";
+
+CREATE EXTENSION "uuid-ossp";
+
+CREATE TYPE region AS ENUM ('TORONTO');
+
+CREATE TYPE crime_type AS ENUM (
+    'Assault',
+    'Auto Theft',
+    'Theft From Vehicle',
+    'Break And Enter',
+    'Sexual Violation',
+    'Robbery',
+    'Theft Over',
+    'Bike Theft',
+    'Shooting',
+    'Homicide'
+);
+
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    email TEXT NOT NULL
+);
+
+CREATE TABLE reports (
+    id SERIAL PRIMARY KEY,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    occur_at TIMESTAMPTZ NOT NULL,
+    external_src_id TEXT NOT NULL,
+    neighborhood TEXT,
+    location_type TEXT,
+    crime_type crime_type NOT NULL,
+    region region NOT NULL,
+    point geometry(Point, 3857) NOT NULL,
+    lat DOUBLE PRECISION NOT NULL,
+    long DOUBLE PRECISION NOT NULL
+);
+CREATE INDEX report_occ_at_idx ON report ("occur_at");
+CREATE INDEX report_point_idx ON report USING GIST ("point");
+
+CREATE TABLE notifs (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_sent BOOLEAN NOT NULL DEFAULT false,
+    is_opened BOOLEAN NOT NULL DEFAULT false,
+    scanner_id INT NOT NULL,
+    CONSTRAINT fk_scanner FOREIGN KEY(scanner_id) REFERENCES scanner(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE scanners (
+    id SERIAL PRIMARY KEY,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    address TEXT,
+    region region NOT NULL,
+    radius DOUBLE PRECISION NOT NULL,
+    point geometry(Point, 3857) NOT NULL,
+    lat DOUBLE PRECISION NOT NULL,
+    long DOUBLE PRECISION NOT NULL,
+    user_id INT NOT NULL,
+    CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE report_notifs (
+    PRIMARY KEY (report_id, notif_id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    notif_id uuid NOT NULL,
+    report_id INTEGER NOT NULL,
+    CONSTRAINT fk_notif FOREIGN KEY(notif_id) REFERENCES notif(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_report FOREIGN KEY(report_id) REFERENCES report(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+CREATE UNIQUE INDEX report_notif_notif_id_key ON report_notif("notif_id");
+CREATE UNIQUE INDEX report_notif_report_id_key ON report_notif("report_id");

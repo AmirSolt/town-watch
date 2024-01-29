@@ -11,15 +11,3 @@ type Notif struct {
 	Scanner Scanner
 	Reports []Report
 }
-
-const NotifSchema string = `
-CREATE TABLE IF NOT EXISTS notif (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	is_sent BOOLEAN NOT NULL DEFAULT false,
-    is_opened BOOLEAN NOT NULL DEFAULT false,
-
-	scanner_id INT NOT NULL,
-	CONSTRAINT fk_scanner FOREIGN KEY(scanner_id) REFERENCES scanner(id) ON DELETE CASCADE ON UPDATE CASCADE
-);
-`

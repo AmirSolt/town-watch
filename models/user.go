@@ -9,11 +9,3 @@ type User struct {
 
 	Scanners []Scanner
 }
-
-const UserSchema string = `
-CREATE TABLE IF NOT EXISTS "user" (
-    id SERIAL PRIMARY KEY,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    email TEXT NOT NULL
-);
-`

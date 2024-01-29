@@ -19,17 +19,3 @@ const (
 	SHOOTING           CrimeType = "Shooting"
 	HOMICIDE           CrimeType = "Homicide"
 )
-
-const EnumSchema string = `
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'region') THEN
-		CREATE TYPE region AS ENUM ('TORONTO');
-    END IF;
-
-	IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'crime_type') THEN
-		CREATE TYPE crime_type AS ENUM ('Assault', 'Auto Theft', 'Theft From Vehicle', 'Break And Enter', 'Sexual Violation', 'Robbery', 'Theft Over', 'Bike Theft', 'Shooting', 'Homicide');
-    END IF;
-END$$;
-
-`
