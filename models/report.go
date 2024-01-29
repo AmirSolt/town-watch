@@ -28,4 +28,7 @@ CREATE TABLE report (
     lat DOUBLE PRECISION NOT NULL,
     long DOUBLE PRECISION NOT NULL,
 );
+
+CREATE INDEX report_occ_at_idx ON report ("occur_at");
+CREATE INDEX report_point_idx ON report USING GIST ("point");
 `

@@ -17,7 +17,10 @@ CREATE TABLE report_notif (
     notif_id INTEGER NOT NULL,
     report_id INTEGER NOT NULL,
 
-	CONSTRAINT fk_notif FOREIGN KEY(notif_id) REFERENCES notif(id)
-	CONSTRAINT fk_report FOREIGN KEY(report_id) REFERENCES report(id)
+	CONSTRAINT fk_notif FOREIGN KEY(notif_id) REFERENCES notif(id) ON DELETE CASCADE ON UPDATE CASCADE;
+	CONSTRAINT fk_report FOREIGN KEY(report_id) REFERENCES report(id) ON DELETE CASCADE ON UPDATE CASCADE;
 );
+
+CREATE UNIQUE INDEX report_notif_notif_id_key ON report_notif("notif_id");
+CREATE UNIQUE INDEX report_notif_report_id_key ON report_notif("report_id");
 `

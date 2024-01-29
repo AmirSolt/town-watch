@@ -2,14 +2,14 @@ package server
 
 import (
 	"log"
+	"strings"
 
+	"github.com/AmirSolt/town-watch/models"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 )
 
 type DB sqlx.DB
-
-const schema string = ``
 
 func (server *Server) loadDB() {
 	dbEngine := sqlx.MustConnect("postgres", server.Env.DATABASE_URL)
@@ -18,7 +18,17 @@ func (server *Server) loadDB() {
 		log.Fatalln("Error db:", err)
 	}
 
-	dbEngine.MustExec(schema)
+	initQueriues := []string{
+		models.EnumSchema,
+		models.NotifSchema,
+		models.ReportNotifSchema,
+		models.ReportSchema,
+		models.ScannerSchema,
+		models.UserSchema,
+	}
+
+	init := strings.Join(initQueriues, "\n")
+	dbEngine.MustExec(init)
 
 	server.DB = (*DB)(dbEngine)
 }
