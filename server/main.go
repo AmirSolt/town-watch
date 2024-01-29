@@ -1,7 +1,6 @@
 package server
 
 import (
-	"database/sql"
 	"path/filepath"
 
 	"github.com/gin-gonic/gin"
@@ -11,7 +10,7 @@ type Server struct {
 	RootDir string
 	Engine  *gin.Engine
 	Env     *Env
-	DB      *sql.DB
+	DB      *DB
 }
 
 func (server *Server) LoadServer() {
