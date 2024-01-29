@@ -93,17 +93,9 @@ func (server *Server) ConvertArcgisResponseToReportsParams(arcgisResponse *Arcgi
 }
 
 func (server *Server) CreateReports(reportsParams *[]models.CreateReportsParams) {
-	var failedSize int = 0
-	for _, reportsParam := range *reportsParams {
-		err := server.DB.queries.CreateReports(context.Background(), reportsParam)
-		if err != nil {
-			fmt.Println("ERROR: report failed to insert:", err)
-			failedSize++
-		}
-	}
-
-	if failedSize == len(*reportsParams) {
-		log.Fatalln(">> ERROR: All reports failed to insert.")
+	count, err := server.DB.queries.CreateReports(context.Background(), *reportsParams)
+	if err != nil {
+		log.Fatalln("ERROR: bulk insert reports failed:", err, " || count:", count)
 	}
 }
 

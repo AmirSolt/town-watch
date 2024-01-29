@@ -11,20 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createReports = `-- name: CreateReports :exec
-INSERT INTO reports (
-    occur_at,
-    external_src_id,
-    neighborhood,
-    location_type,
-    crime_type,
-    region,
-    point,
-    lat,
-    long
-) VALUES ($1,$2,$3,$4,$5,$6,ST_POINT($7, $8 ,3857),$7,$8)
-`
-
 type CreateReportsParams struct {
 	OccurAt       pgtype.Timestamptz
 	ExternalSrcID string
@@ -34,20 +20,6 @@ type CreateReportsParams struct {
 	Region        Region
 	Lat           float64
 	Long          float64
-}
-
-func (q *Queries) CreateReports(ctx context.Context, arg CreateReportsParams) error {
-	_, err := q.db.Exec(ctx, createReports,
-		arg.OccurAt,
-		arg.ExternalSrcID,
-		arg.Neighborhood,
-		arg.LocationType,
-		arg.CrimeType,
-		arg.Region,
-		arg.Lat,
-		arg.Long,
-	)
-	return err
 }
 
 const getUser = `-- name: GetUser :one

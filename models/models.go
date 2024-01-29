@@ -14,16 +14,16 @@ import (
 type CrimeType string
 
 const (
-	CrimeTypeAssault          CrimeType = "Assault"
-	CrimeTypeAutoTheft        CrimeType = "Auto Theft"
-	CrimeTypeTheftFromVehicle CrimeType = "Theft From Vehicle"
-	CrimeTypeBreakAndEnter    CrimeType = "Break And Enter"
-	CrimeTypeSexualViolation  CrimeType = "Sexual Violation"
-	CrimeTypeRobbery          CrimeType = "Robbery"
-	CrimeTypeTheftOver        CrimeType = "Theft Over"
-	CrimeTypeBikeTheft        CrimeType = "Bike Theft"
-	CrimeTypeShooting         CrimeType = "Shooting"
-	CrimeTypeHomicide         CrimeType = "Homicide"
+	CrimeTypeAssault               CrimeType = "Assault"
+	CrimeTypeAutoTheft             CrimeType = "Auto Theft"
+	CrimeTypeTheftfromMotorVehicle CrimeType = "Theft from Motor Vehicle"
+	CrimeTypeBreakandEnter         CrimeType = "Break and Enter"
+	CrimeTypeSexualViolation       CrimeType = "Sexual Violation"
+	CrimeTypeRobbery               CrimeType = "Robbery"
+	CrimeTypeTheftOver             CrimeType = "Theft Over"
+	CrimeTypeBikeTheft             CrimeType = "Bike Theft"
+	CrimeTypeShooting              CrimeType = "Shooting"
+	CrimeTypeHomicide              CrimeType = "Homicide"
 )
 
 func (e *CrimeType) Scan(src interface{}) error {

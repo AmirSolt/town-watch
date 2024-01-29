@@ -6,6 +6,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TYPE region AS ENUM ('TORONTO');
 
+
 CREATE TYPE crime_type AS ENUM (
     'Assault',
     'Auto Theft',
@@ -19,11 +20,15 @@ CREATE TYPE crime_type AS ENUM (
     'Homicide'
 );
 
+-- ======
+
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     email TEXT NOT NULL
 );
+
+-- ======
 
 CREATE TABLE reports (
     id SERIAL PRIMARY KEY,
@@ -40,7 +45,16 @@ CREATE TABLE reports (
 );
 CREATE INDEX report_occ_at_idx ON reports ("occur_at");
 CREATE INDEX report_point_idx ON reports USING GIST ("point");
+CREATE FUNCTION report_insert() RETURNS trigger AS $$
+    BEGIN
+        NEW.point := ST_POINT(NEW.lat, NEW.long, 3857)
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER on_report_insert BEFORE INSERT OR UPDATE ON reports
+    FOR EACH ROW EXECUTE FUNCTION report_insert();
 
+-- ======
 
 CREATE TABLE scanners (
     id SERIAL PRIMARY KEY,
@@ -55,7 +69,16 @@ CREATE TABLE scanners (
     user_id INT NOT NULL,
     CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
+CREATE FUNCTION scanner_insert() RETURNS trigger AS $$
+    BEGIN
+        NEW.point := ST_POINT(NEW.lat, NEW.long, 3857)
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER on_scanner_insert BEFORE INSERT OR UPDATE ON scanners
+    FOR EACH ROW EXECUTE FUNCTION scanner_insert();
 
+-- ======
 
 CREATE TABLE notifs (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -63,9 +86,12 @@ CREATE TABLE notifs (
     is_sent BOOLEAN NOT NULL DEFAULT false,
     is_opened BOOLEAN NOT NULL DEFAULT false,
     scanner_id INT NOT NULL,
-    CONSTRAINT fk_scanner FOREIGN KEY(scanner_id) REFERENCES scanners(id) ON DELETE CASCADE ON UPDATE CASCADE
+    user_id INT NOT NULL,
+    CONSTRAINT fk_scanner FOREIGN KEY(scanner_id) REFERENCES scanners(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
+-- ======
 
 CREATE TABLE report_notifs (
     PRIMARY KEY (report_id, notif_id),
