@@ -17,18 +17,18 @@ type Scanner struct {
 }
 
 const ScannerSchema string = `
-CREATE TABLE scanner (
+CREATE TABLE IF NOT EXISTS scanner (
     id SERIAL PRIMARY KEY,
-    created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN NOT NULL DEFAULT true,
     address TEXT,
-    region "Region" NOT NULL,
+    region region NOT NULL,
     radius DOUBLE PRECISION NOT NULL,
     point geometry(Point, 3857) NOT NULL,
     lat DOUBLE PRECISION NOT NULL,
     long DOUBLE PRECISION NOT NULL,
 
 	user_id INT NOT NULL,
-	CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES user(id) ON DELETE CASCADE ON UPDATE CASCADE;
+	CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES "user"(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 `

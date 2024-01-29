@@ -13,13 +13,13 @@ type Notif struct {
 }
 
 const NotifSchema string = `
-CREATE TABLE notif (
+CREATE TABLE IF NOT EXISTS notif (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	is_sent BOOLEAN NOT NULL DEFAULT false,
     is_opened BOOLEAN NOT NULL DEFAULT false,
 
 	scanner_id INT NOT NULL,
-	CONSTRAINT fk_scanner FOREIGN KEY(scanner_id) REFERENCES scanner(id) ON DELETE CASCADE ON UPDATE CASCADE;
+	CONSTRAINT fk_scanner FOREIGN KEY(scanner_id) REFERENCES scanner(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 `

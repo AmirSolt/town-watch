@@ -21,9 +21,15 @@ const (
 )
 
 const EnumSchema string = `
--- CreateEnum
-CREATE TYPE "Region" AS ENUM ('TORONTO');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'region') THEN
+		CREATE TYPE region AS ENUM ('TORONTO');
+    END IF;
 
--- CreateEnum
-CREATE TYPE "CrimeType" AS ENUM ('Assault', 'Auto Theft', 'Theft From Vehicle', 'Break And Enter', 'Sexual Violation', 'Robbery', 'Theft Over', 'Bike Theft', 'Shooting', 'Homicide');
+	IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'crime_type') THEN
+		CREATE TYPE crime_type AS ENUM ('Assault', 'Auto Theft', 'Theft From Vehicle', 'Break And Enter', 'Sexual Violation', 'Robbery', 'Theft Over', 'Bike Theft', 'Shooting', 'Homicide');
+    END IF;
+END$$;
+
 `

@@ -15,20 +15,20 @@ type Report struct {
 }
 
 const ReportSchema string = `
-CREATE TABLE report (
+CREATE TABLE IF NOT EXISTS report (
     id SERIAL PRIMARY KEY,
-    created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    occur_at TIMESTAMP(3) NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    occur_at TIMESTAMPTZ NOT NULL,
     external_src_id TEXT NOT NULL,
     neighborhood TEXT,
     location_type TEXT,
-    crime_type "CrimeType" NOT NULL,
-    region "Region" NOT NULL,
+    crime_type crime_type NOT NULL,
+    region region NOT NULL,
     point geometry(Point, 3857) NOT NULL,
     lat DOUBLE PRECISION NOT NULL,
-    long DOUBLE PRECISION NOT NULL,
+    long DOUBLE PRECISION NOT NULL
 );
 
-CREATE INDEX report_occ_at_idx ON report ("occur_at");
-CREATE INDEX report_point_idx ON report USING GIST ("point");
+CREATE INDEX IF NOT EXISTS report_occ_at_idx ON report ("occur_at");
+CREATE INDEX IF NOT EXISTS report_point_idx ON report USING GIST ("point");
 `

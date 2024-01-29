@@ -11,9 +11,9 @@ type User struct {
 }
 
 const UserSchema string = `
-CREATE TABLE user (
+CREATE TABLE IF NOT EXISTS "user" (
     id SERIAL PRIMARY KEY,
-    created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    email TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    email TEXT NOT NULL
 );
 `

@@ -12,23 +12,27 @@ import (
 type DB sqlx.DB
 
 func (server *Server) loadDB() {
-	dbEngine := sqlx.MustConnect("postgres", server.Env.DATABASE_URL)
+	dbEngine, dbErr := sqlx.Connect("postgres", server.Env.DATABASE_URL)
 
-	if err := dbEngine.Ping(); err != nil {
-		log.Fatalln("Error db:", err)
+	if dbErr != nil {
+		log.Fatalln("Error db:", dbErr)
 	}
 
 	initQueriues := []string{
+		models.ExtSchema,
 		models.EnumSchema,
-		models.NotifSchema,
-		models.ReportNotifSchema,
-		models.ReportSchema,
-		models.ScannerSchema,
 		models.UserSchema,
+		models.ScannerSchema,
+		models.NotifSchema,
+		models.ReportSchema,
+		models.ReportNotifSchema,
 	}
 
 	init := strings.Join(initQueriues, "\n")
-	dbEngine.MustExec(init)
+	_, err := dbEngine.Exec(init)
+	if err != nil {
+		log.Fatalln("Error db:", err)
+	}
 
 	server.DB = (*DB)(dbEngine)
 }
