@@ -82,7 +82,7 @@ func (server *Server) ConvertArcgisResponseToReportsParams(arcgisResponse *Arcgi
 			ExternalSrcID: arcReport.Attributes.EventUniqueId,
 			Neighborhood:  pgtype.Text{String: removeNeighExtraChars(arcReport.Attributes.Neighbourhood158), Valid: true},
 			LocationType:  pgtype.Text{String: arcReport.Attributes.LocationCategory, Valid: true},
-			CrimeType:     models.CrimeType(arcReport.Attributes.LocationCategory),
+			CrimeType:     models.CrimeType(arcReport.Attributes.CrimeType),
 			Region:        models.Region(models.RegionTORONTO),
 			Lat:           arcReport.Geometry.X,
 			Long:          arcReport.Geometry.Y,

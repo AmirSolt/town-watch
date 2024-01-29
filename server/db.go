@@ -20,8 +20,10 @@ func (server *Server) loadDB() {
 	}
 
 	queries := models.New(conn)
-	server.DB.conn = conn
-	server.DB.queries = queries
+	server.DB = &DB{
+		conn:    conn,
+		queries: queries,
+	}
 }
 
 func (server *Server) killDB() {

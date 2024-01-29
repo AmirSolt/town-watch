@@ -41,7 +41,7 @@ func TestFetchReports(t *testing.T) {
 	}
 }
 
-func TestConvertArcgisResponseToReports(t *testing.T) {
+func TestConvertArcgisResponseToReportsParams(t *testing.T) {
 	tests := []struct {
 		inputFromDate time.Time
 		inputToDate   time.Time
@@ -59,7 +59,6 @@ func TestConvertArcgisResponseToReports(t *testing.T) {
 	for i, tc := range tests {
 		arcReports, err := server.FetchArcgisReports(tc.inputFromDate, tc.inputToDate)
 
-		// new code
 		got := server.ConvertArcgisResponseToReportsParams(arcReports)
 
 		fmt.Println(">>> Reports Len:", len(*got))
@@ -68,5 +67,40 @@ func TestConvertArcgisResponseToReports(t *testing.T) {
 		}
 
 		time.Sleep(1 * time.Second)
+	}
+}
+
+func TestCreateReports(t *testing.T) {
+	tests := []struct {
+		inputFromDate time.Time
+		inputToDate   time.Time
+		want          bool
+		ok            bool
+	}{
+		{inputFromDate: time.Now().UTC().AddDate(0, 0, -2), inputToDate: time.Now().UTC().AddDate(0, 0, -1), ok: true},
+	}
+
+	server := server.Server{
+		RootDir: "../",
+	}
+	server.LoadServer()
+
+	for i, tc := range tests {
+		arcReports, err := server.FetchArcgisReports(tc.inputFromDate, tc.inputToDate)
+
+		if (err == nil) != tc.ok {
+			t.Fatalf("test %d: ok:%v error:%v", i+1, tc.ok, err)
+		}
+
+		reportsParams := server.ConvertArcgisResponseToReportsParams(arcReports)
+
+		server.CreateReports(reportsParams)
+
+		// fmt.Println(">>> Reports Len:", len(*got))
+		// if (err == nil) != tc.ok || (len(*got) > 0) != tc.want {
+		// 	t.Fatalf("test %d: expected: %v, got: %v, ok:%v error:%v", i+1, tc.want, len(*got), tc.ok, err)
+		// }
+
+		// time.Sleep(1 * time.Second)
 	}
 }

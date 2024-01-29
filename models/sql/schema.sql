@@ -1,16 +1,16 @@
 -- Amirali Soltani
 -- 2024-01-29
-CREATE EXTENSION "postgis";
+CREATE EXTENSION IF NOT EXISTS "postgis";
 
-CREATE EXTENSION "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TYPE region AS ENUM ('TORONTO');
 
 CREATE TYPE crime_type AS ENUM (
     'Assault',
     'Auto Theft',
-    'Theft From Vehicle',
-    'Break And Enter',
+    'Theft from Motor Vehicle',
+    'Break and Enter',
     'Sexual Violation',
     'Robbery',
     'Theft Over',
