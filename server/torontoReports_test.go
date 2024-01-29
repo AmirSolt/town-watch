@@ -29,7 +29,8 @@ func TestFetchReports(t *testing.T) {
 	server.LoadServer()
 
 	for i, tc := range tests {
-		got, err := server.FetchReports(tc.inputFromDate, tc.inputToDate)
+
+		got, err := server.FetchArcgisReports(tc.inputFromDate, tc.inputToDate)
 
 		fmt.Println(">>> Features Len:", len(got.Features))
 		if (err == nil) != tc.ok || (len(got.Features) > 0) != tc.want {
@@ -56,7 +57,7 @@ func TestConvertArcgisResponseToReports(t *testing.T) {
 	server.LoadServer()
 
 	for i, tc := range tests {
-		arcReports, err := server.FetchReports(tc.inputFromDate, tc.inputToDate)
+		arcReports, err := server.FetchArcgisReports(tc.inputFromDate, tc.inputToDate)
 
 		// new code
 		got := server.ConvertArcgisResponseToReports(arcReports)

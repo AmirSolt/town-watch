@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -46,11 +45,10 @@ type ArcgisAttributes struct {
 	LocationCategory string  `json:"LOCATION_CATEGORY"`
 }
 
-func (server *Server) FetchReports(fromDate time.Time, toDate time.Time) (*ArcgisResponse, error) {
+func (server *Server) FetchArcgisReports(fromDate time.Time, toDate time.Time) (*ArcgisResponse, error) {
 	toDateStr := fmt.Sprintf("AND OCC_DATE_AGOL <= date '%s'", convertToArcgisQueryTime(toDate))
 	where := fmt.Sprintf("OCC_DATE_AGOL >= date '%s' %s", convertToArcgisQueryTime(fromDate), toDateStr)
 	endpoint := fmt.Sprintf("https://services.arcgis.com/S9th0jAJ7bqgIRjw/ArcGIS/rest/services/YTD_CRIME_WM/FeatureServer/0/query?where=%s&objectIds=&time=&geometry=&geometryType=esriGeometryEnvelope&inSR=&spatialRel=esriSpatialRelIntersects&resultType=none&distance=0.0&units=esriSRUnit_Meter&relationParam=&returnGeodetic=false&outFields=*&returnGeometry=true&featureEncoding=esriDefault&multipatchOption=xyFootprint&maxAllowableOffset=&geometryPrecision=&outSR=&defaultSR=&datumTransformation=&applyVCSProjection=false&returnIdsOnly=false&returnUniqueIdsOnly=false&returnCountOnly=false&returnExtentOnly=false&returnQueryGeometry=false&returnDistinctValues=false&cacheHint=false&orderByFields=&groupByFieldsForStatistics=&outStatistics=&having=&resultOffset=&resultRecordCount=&returnZ=false&returnM=false&returnExceededLimitFeatures=true&quantizationParameters=&sqlFormat=none&f=pjson&token=", url.QueryEscape(where))
-
 	resp, err := http.Get(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("error making request to Arcgis API: %w", err)
@@ -65,7 +63,7 @@ func (server *Server) FetchReports(fromDate time.Time, toDate time.Time) (*Arcgi
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	vErr := validate.Struct(response)
 	if vErr != nil {
-		log.Fatal("Error Arcgis response did not pass validator.")
+		return nil, fmt.Errorf("error Arcgis response did not pass validator.: %w", err)
 	}
 	return &response, nil
 }

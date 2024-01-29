@@ -17,7 +17,7 @@ type Env struct {
 func (server *Server) loadEnv() {
 
 	if err := godotenv.Load(filepath.Join(server.RootDir, ".env")); err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatal("Error .env:", err)
 	}
 
 	env := Env{
@@ -28,7 +28,7 @@ func (server *Server) loadEnv() {
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	err := validate.Struct(env)
 	if err != nil {
-		log.Fatal("Error a variable is missing from .env")
+		log.Fatal("Error .env:", err)
 	}
 
 	server.Env = &env

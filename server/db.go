@@ -9,17 +9,13 @@ import (
 
 type DB sqlx.DB
 
-const schema string = `CREATE TABLE place (
-	id SERIAL
-    country text,
-    city text NULL,
-    telcode integer);`
+const schema string = ``
 
 func (server *Server) loadDB() {
 	dbEngine := sqlx.MustConnect("postgres", server.Env.DATABASE_URL)
 
 	if err := dbEngine.Ping(); err != nil {
-		log.Fatalln(err)
+		log.Fatalln("Error db:", err)
 	}
 
 	dbEngine.MustExec(schema)
