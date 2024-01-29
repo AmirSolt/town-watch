@@ -1,6 +1,7 @@
 package server
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -21,8 +22,8 @@ type ArcgisReport struct {
 }
 
 type ArcgisGeometry struct {
-	X float32 `json:"x" validate:"required"`
-	Y float32 `json:"y" validate:"required"`
+	X float64 `json:"x" validate:"required"`
+	Y float64 `json:"y" validate:"required"`
 }
 
 type ArcgisAttributes struct {
@@ -40,8 +41,8 @@ type ArcgisAttributes struct {
 	Hood140          string  `json:"HOOD_140"`
 	Neighbourhood140 string  `json:"NEIGHBOURHOOD_140"`
 	Count            int16   `json:"COUNT_"`
-	LongWgs84        float32 `json:"LONG_WGS84"`
-	LatWgs84         float32 `json:"LAT_WGS84"`
+	LongWgs84        float64 `json:"LONG_WGS84"`
+	LatWgs84         float64 `json:"LAT_WGS84"`
 	LocationCategory string  `json:"LOCATION_CATEGORY"`
 }
 
@@ -72,12 +73,13 @@ func (server *Server) ConvertArcgisResponseToReports(arcgisResponse *ArcgisRespo
 	reports := []models.Report{}
 
 	for _, arcReport := range arcgisResponse.Features {
+		secs := int64(arcReport.Attributes.OccDateAgol/1000.0) + int64(arcReport.Attributes.Hour*60*60)
 		reports = append(reports, models.Report{
-			OccurAt:      time.Unix(arcReport.Attributes.OccDateAgol/1000.0, 0),
-			Neighborhood: arcReport.Attributes.Neighbourhood158,
-			LocationType: arcReport.Attributes.LocationCategory,
+			OccurAt:      time.Unix(secs, 0).UTC(),
+			Neighborhood: sql.NullString{String: arcReport.Attributes.Neighbourhood158, Valid: true},
+			LocationType: sql.NullString{String: arcReport.Attributes.LocationCategory, Valid: true},
 			CrimeType:    models.CrimeType(arcReport.Attributes.LocationCategory),
-			Region:       models.Region(models.TORONTO),
+			Region:       models.Region(models.RegionTORONTO),
 			Lat:          arcReport.Geometry.X,
 			Long:         arcReport.Geometry.Y,
 		})

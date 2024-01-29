@@ -1,22 +1,23 @@
 package server
 
 import (
+	"database/sql"
 	"log"
 
-	"github.com/jmoiron/sqlx"
-	_ "github.com/lib/pq"
+	_ "github.com/jackc/pgx/v5"
 )
 
-type DB sqlx.DB
-
 func (server *Server) loadDB() {
-	dbEngine, dbErr := sqlx.Connect("postgres", server.Env.DATABASE_URL)
-
+	dbEngine, dbErr := sql.Open("postgres", server.Env.DATABASE_URL)
 	if dbErr != nil {
 		log.Fatalln("Error db:", dbErr)
 	}
 
-	server.DB = (*DB)(dbEngine)
+	if err := dbEngine.Ping(); err != nil {
+		log.Fatalln("Error db:", err)
+	}
+
+	server.DB = dbEngine
 }
 
 func (server *Server) killDB() {
