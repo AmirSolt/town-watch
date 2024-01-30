@@ -64,6 +64,31 @@ func (q *Queries) GetUser(ctx context.Context, id int32) (User, error) {
 	return i, err
 }
 
+const getUsers = `-- name: GetUsers :many
+SELECT id, created_at, email FROM users
+WHERE id = ANY($1::int[])
+`
+
+func (q *Queries) GetUsers(ctx context.Context, dollar_1 []int32) ([]User, error) {
+	rows, err := q.db.Query(ctx, getUsers, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(&i.ID, &i.CreatedAt, &i.Email); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const scanReports = `-- name: ScanReports :many
 SELECT id, created_at, occur_at, external_src_id, neighborhood, location_type, crime_type, region, point, lat, long
 FROM reports

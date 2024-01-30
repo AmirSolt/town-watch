@@ -2,6 +2,10 @@
 SELECT * FROM users
 WHERE id = $1 LIMIT 1;
 
+-- name: GetUsers :many
+SELECT * FROM users
+WHERE id = ANY($1::int[]);
+
 -- name: CreateReports :copyfrom
 INSERT INTO reports (
     occur_at,
@@ -32,3 +36,4 @@ LIMIT $7;
 
 -- name: CreateScannerNotifs :many
 SELECT scanner_notifs($1, $2, $3);
+
