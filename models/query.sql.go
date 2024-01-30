@@ -33,3 +33,69 @@ func (q *Queries) GetUser(ctx context.Context, id int32) (User, error) {
 	err := row.Scan(&i.ID, &i.CreatedAt, &i.Email)
 	return i, err
 }
+
+const scanReports = `-- name: ScanReports :many
+SELECT id, created_at, occur_at, external_src_id, neighborhood, location_type, crime_type, region, point, lat, long
+FROM reports
+WHERE 
+ST_DWithin(
+    point,
+    ST_Point($1, $2, 3857),
+    $3
+)
+AND region = $4
+AND occur_at >= $5
+AND occur_at <= $6
+ORDER BY occur_at
+LIMIT $7
+`
+
+type ScanReportsParams struct {
+	StPoint   interface{}
+	StPoint_2 interface{}
+	StDwithin interface{}
+	Region    Region
+	OccurAt   pgtype.Timestamptz
+	OccurAt_2 pgtype.Timestamptz
+	Limit     int32
+}
+
+func (q *Queries) ScanReports(ctx context.Context, arg ScanReportsParams) ([]Report, error) {
+	rows, err := q.db.Query(ctx, scanReports,
+		arg.StPoint,
+		arg.StPoint_2,
+		arg.StDwithin,
+		arg.Region,
+		arg.OccurAt,
+		arg.OccurAt_2,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Report
+	for rows.Next() {
+		var i Report
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.OccurAt,
+			&i.ExternalSrcID,
+			&i.Neighborhood,
+			&i.LocationType,
+			&i.CrimeType,
+			&i.Region,
+			&i.Point,
+			&i.Lat,
+			&i.Long,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

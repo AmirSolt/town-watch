@@ -90,6 +90,37 @@ CREATE TABLE notifs (
     CONSTRAINT fk_scanner FOREIGN KEY(scanner_id) REFERENCES scanners(id) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
+CREATE OR REPLACE FUNCTION scanner_notifs(from_date TIMESTAMPTZ, to_date TIMESTAMPTZ, scan_reports_limit INT)
+RETURNS TABLE (notif_id uuid) AS $$
+DECLARE
+    scanner_record RECORD;
+    report_ids INT[];
+    new_notif_id uuid;
+BEGIN
+    FOR scanner_record IN SELECT * FROM scanners WHERE is_active = true LOOP
+        report_ids := ARRAY(SELECT id FROM reports
+            WHERE ST_DWithin(point, scanner_record.point, scanner_record.radius)
+            AND region = scanner_record.region
+            AND occur_at >= from_date
+            AND occur_at <= to_date
+            ORDER BY occur_at
+            LIMIT scan_reports_limit
+        );
+        
+        IF array_length(report_ids, 1) > 0 THEN
+            INSERT INTO notifs (scanner_id, user_id) VALUES (scanner_record.id, scanner_record.user_id)
+            RETURNING id INTO new_notif_id;
+            
+            FOREACH i IN ARRAY report_ids LOOP
+                INSERT INTO report_notifs (notif_id, report_id) VALUES (new_notif_id, i);
+            END LOOP;
+            
+            RETURN NEXT new_notif_id;
+        END IF;
+        
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
 
 -- ======
 

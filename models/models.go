@@ -108,6 +108,7 @@ type Notif struct {
 	IsSent    bool
 	IsOpened  bool
 	ScannerID int32
+	UserID    int32
 }
 
 type Report struct {

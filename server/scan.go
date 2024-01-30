@@ -18,22 +18,5 @@ type ScanParams struct {
 func (server *Server) Scan(scanParams ScanParams) *[]models.Report {
 	// query db
 
-	`
-                SELECT *
-                FROM "Report"
-                WHERE 
-                ST_DWithin(
-                    point,
-                    ST_Point(${lat}, ${long}, 3857),
-                    ${radius}
-                )
-                AND region = ${region} 
-                AND reported_at > CURRENT_DATE - INTERVAL '${afterDays} day'
-                ${toDaysAgoQuery}
-                ORDER BY
-                    reported_at
-                LIMIT ${REPORTS_LIMIT};
-            `
-
 	return &[]models.Report{}
 }

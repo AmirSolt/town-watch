@@ -16,5 +16,18 @@ INSERT INTO reports (
 
 
 -- name: ScanReports :many
+SELECT *
+FROM reports
+WHERE 
+ST_DWithin(
+    point,
+    ST_Point(@lat::float, @long::DOUBLE PRECISION, 3857),
+    @radius::DOUBLE PRECISION
+)
+AND region = $4
+AND occur_at >= $5
+AND occur_at <= $6
+ORDER BY occur_at
+LIMIT $7;
 
 -- name: CreateScannerNotifs :many
