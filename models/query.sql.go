@@ -22,6 +22,36 @@ type CreateReportsParams struct {
 	Long          float64
 }
 
+const createScannerNotifs = `-- name: CreateScannerNotifs :many
+SELECT scanner_notifs($1, $2, $3)
+`
+
+type CreateScannerNotifsParams struct {
+	FromDate         pgtype.Timestamptz
+	ToDate           pgtype.Timestamptz
+	ScanReportsLimit int32
+}
+
+func (q *Queries) CreateScannerNotifs(ctx context.Context, arg CreateScannerNotifsParams) ([]pgtype.UUID, error) {
+	rows, err := q.db.Query(ctx, createScannerNotifs, arg.FromDate, arg.ToDate, arg.ScanReportsLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []pgtype.UUID
+	for rows.Next() {
+		var scanner_notifs pgtype.UUID
+		if err := rows.Scan(&scanner_notifs); err != nil {
+			return nil, err
+		}
+		items = append(items, scanner_notifs)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUser = `-- name: GetUser :one
 SELECT id, created_at, email FROM users
 WHERE id = $1 LIMIT 1

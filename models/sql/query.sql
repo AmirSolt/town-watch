@@ -31,3 +31,4 @@ ORDER BY occur_at
 LIMIT $7;
 
 -- name: CreateScannerNotifs :many
+SELECT scanner_notifs($1, $2, $3);
