@@ -52,20 +52,90 @@ func (q *Queries) CreateScannerNotifs(ctx context.Context, arg CreateScannerNoti
 	return items, nil
 }
 
+const createUser = `-- name: CreateUser :one
+INSERT INTO users (
+    email,
+    hashed_password
+) VALUES (
+    $1, $2
+)
+RETURNING id, jwt_id, created_at, email, hashed_password
+`
+
+type CreateUserParams struct {
+	Email          string
+	HashedPassword string
+}
+
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, createUser, arg.Email, arg.HashedPassword)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.JwtID,
+		&i.CreatedAt,
+		&i.Email,
+		&i.HashedPassword,
+	)
+	return i, err
+}
+
 const getUser = `-- name: GetUser :one
-SELECT id, created_at, email FROM users
+SELECT id, jwt_id, created_at, email, hashed_password FROM users
 WHERE id = $1 LIMIT 1
 `
 
 func (q *Queries) GetUser(ctx context.Context, id int32) (User, error) {
 	row := q.db.QueryRow(ctx, getUser, id)
 	var i User
-	err := row.Scan(&i.ID, &i.CreatedAt, &i.Email)
+	err := row.Scan(
+		&i.ID,
+		&i.JwtID,
+		&i.CreatedAt,
+		&i.Email,
+		&i.HashedPassword,
+	)
+	return i, err
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, jwt_id, created_at, email, hashed_password FROM users
+WHERE email = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.JwtID,
+		&i.CreatedAt,
+		&i.Email,
+		&i.HashedPassword,
+	)
+	return i, err
+}
+
+const getUserByJWTId = `-- name: GetUserByJWTId :one
+SELECT id, jwt_id, created_at, email, hashed_password FROM users
+WHERE jwt_id = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByJWTId(ctx context.Context, jwtID pgtype.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByJWTId, jwtID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.JwtID,
+		&i.CreatedAt,
+		&i.Email,
+		&i.HashedPassword,
+	)
 	return i, err
 }
 
 const getUsers = `-- name: GetUsers :many
-SELECT id, created_at, email FROM users
+SELECT id, jwt_id, created_at, email, hashed_password FROM users
 WHERE id = ANY($1::int[])
 `
 
@@ -78,7 +148,13 @@ func (q *Queries) GetUsers(ctx context.Context, dollar_1 []int32) ([]User, error
 	var items []User
 	for rows.Next() {
 		var i User
-		if err := rows.Scan(&i.ID, &i.CreatedAt, &i.Email); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.JwtID,
+			&i.CreatedAt,
+			&i.Email,
+			&i.HashedPassword,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

@@ -145,7 +145,9 @@ type Scanner struct {
 }
 
 type User struct {
-	ID        int32
-	CreatedAt pgtype.Timestamptz
-	Email     string
+	ID             int32
+	JwtID          pgtype.UUID
+	CreatedAt      pgtype.Timestamptz
+	Email          string
+	HashedPassword string
 }

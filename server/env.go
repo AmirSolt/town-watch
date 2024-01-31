@@ -15,6 +15,7 @@ type Env struct {
 	ARCGIS_TORONTO_URL      string `validate:"url"`
 	EMAIL_CF_WORKER_URL     string `validate:"url"`
 	EMAIL_CF_WORKER_API_KEY string `validate:"required"`
+	JWT_SECRET              string `validate:"required"`
 }
 
 func (server *Server) loadEnv() {
@@ -29,6 +30,7 @@ func (server *Server) loadEnv() {
 		ARCGIS_TORONTO_URL:      os.Getenv("ARCGIS_TORONTO_URL"),
 		EMAIL_CF_WORKER_URL:     os.Getenv("EMAIL_CF_WORKER_URL"),
 		EMAIL_CF_WORKER_API_KEY: os.Getenv("EMAIL_CF_WORKER_API_KEY"),
+		JWT_SECRET:              os.Getenv("JWT_SECRET"),
 	}
 
 	validate := validator.New(validator.WithRequiredStructEnabled())

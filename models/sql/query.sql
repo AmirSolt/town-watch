@@ -2,9 +2,28 @@
 SELECT * FROM users
 WHERE id = $1 LIMIT 1;
 
+-- name: GetUserByEmail :one
+SELECT * FROM users
+WHERE email = $1 LIMIT 1;
+
+-- name: GetUserByJWTId :one
+SELECT * FROM users
+WHERE jwt_id = $1 LIMIT 1;
+
 -- name: GetUsers :many
 SELECT * FROM users
 WHERE id = ANY($1::int[]);
+
+-- name: CreateUser :one
+INSERT INTO users (
+    email,
+    hashed_password
+) VALUES (
+    $1, $2
+)
+RETURNING *;
+
+
 
 -- name: CreateReports :copyfrom
 INSERT INTO reports (

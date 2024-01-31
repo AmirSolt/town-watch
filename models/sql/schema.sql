@@ -24,9 +24,12 @@ CREATE TYPE crime_type AS ENUM (
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
+    jwt_id uuid NOT NULL UNIQUE DEFAULT uuid_generate_v4(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    email TEXT NOT NULL
+    email TEXT NOT NULL UNIQUE,
+    hashed_password TEXT NOT NULL
 );
+CREATE UNIQUE INDEX user_jwt_id_key ON users("jwt_id");
 
 -- ======
 
