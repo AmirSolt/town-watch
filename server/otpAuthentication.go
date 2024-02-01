@@ -10,6 +10,27 @@ import (
 
 const minPasswordLen = 6
 
+func (server *Server) InitOTP(email string) {
+	// create user if doesnt exist
+
+	user, err := server.DB.queries.GetUserByEmail(context.Background())
+
+	user, err := server.DB.queries.CreateUser(context.Background(), models.CreateUserParams{Email: email, HashedPassword: string(hashedPassword)})
+	if err != nil {
+		return nil, fmt.Errorf("signup error: %w", err)
+	}
+
+	// create otp
+	// send otp
+}
+
+func (server *Server) ValidateOTP(otpId string) {
+	// find otp
+	// check is_active
+	// check expiry
+	// set jwt
+}
+
 func (server *Server) Signup(ginContext *gin.Context, email string, password string) (*models.User, error) {
 
 	if len(password) < minPasswordLen {

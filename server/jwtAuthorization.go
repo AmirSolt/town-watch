@@ -12,15 +12,34 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/lestrrat-go/jwx/v2/jwa"
 	"github.com/lestrrat-go/jwx/v2/jwe"
-	"golang.org/x/crypto/bcrypt"
 )
 
 const expirationDurationSeconds = 60 * 60 * 24 * 15
 
 type JWT struct {
-	JWT_ID string `json:"jwt_id"`
-	IP     string `json:"ip"`
-	EXP    int64  `json:"exp"`
+	id  string `json:"id"`
+	IP  string `json:"ip"`
+	EXP int64  `json:"exp"`
+}
+
+func (server *Server) SetJWT(ginContext *gin.Context, user *models.User, jwtSecret string) error {
+
+	jwt := JWT{
+		id:  string(user.JwtID.Bytes[:]),
+		IP:  ginContext.ClientIP(),
+		EXP: time.Now().Add(time.Second * expirationDurationSeconds).Unix(),
+	}
+
+	jwtEncrypted, err := encryptJWT(jwt, jwtSecret)
+	if err != nil {
+		return fmt.Errorf("jwt authorization failed: %w", err)
+	}
+
+	// attach to cookie
+	ginContext.SetSameSite(http.SameSiteLaxMode)
+	ginContext.SetCookie("Authorization", string(jwtEncrypted), expirationDurationSeconds, "/", "", true, true)
+
+	return nil
 }
 
 func (server *Server) ParseJWT(jwtEncrypted string) (*JWT, error) {
@@ -54,45 +73,6 @@ func (server *Server) ValidateUserByJWT(ginContext *gin.Context, jwt *JWT) (*mod
 }
 
 // ==============================================================
-
-func setJWT(ginContext *gin.Context, user *models.User, jwtSecret string) error {
-
-	jwt := JWT{
-		JWT_ID: string(user.JwtID.Bytes[:]),
-		IP:     ginContext.ClientIP(),
-		EXP:    time.Now().Add(time.Second * expirationDurationSeconds).Unix(),
-	}
-
-	jwtEncrypted, err := encryptJWT(jwt, jwtSecret)
-	if err != nil {
-		return fmt.Errorf("jwt authorization failed: %w", err)
-	}
-
-	// attach to cookie
-	ginContext.SetSameSite(http.SameSiteLaxMode)
-	ginContext.SetCookie("Authorization", string(jwtEncrypted), expirationDurationSeconds, "/", "", true, true)
-
-	return nil
-}
-
-func hashPassword(password string, salt string) ([]byte, error) {
-	saltedPassword := password + salt
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(saltedPassword), 10)
-	if err != nil {
-		return nil, fmt.Errorf("password hashing error: %w", err)
-	}
-	return hashedPassword, nil
-}
-
-func compareToHashedPassword(user *models.User, password string, salt string) error {
-	saltedPassword := password + salt
-
-	errHashed := bcrypt.CompareHashAndPassword([]byte(user.HashedPassword), []byte(saltedPassword))
-	if errHashed != nil {
-		return fmt.Errorf("login error: password failed compare")
-	}
-	return nil
-}
 
 func encryptJWT(jwt JWT, jwe_secret_key string) ([]byte, error) {
 

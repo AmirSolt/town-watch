@@ -6,9 +6,9 @@ WHERE id = $1 LIMIT 1;
 SELECT * FROM users
 WHERE email = $1 LIMIT 1;
 
--- name: GetUserByJWTId :one
+-- name: GetUserByAuthoId :one
 SELECT * FROM users
-WHERE jwt_id = $1 LIMIT 1;
+WHERE autho_id = $1 LIMIT 1;
 
 -- name: GetUsers :many
 SELECT * FROM users
@@ -16,10 +16,9 @@ WHERE id = ANY($1::int[]);
 
 -- name: CreateUser :one
 INSERT INTO users (
-    email,
-    hashed_password
+    email
 ) VALUES (
-    $1, $2
+    $1
 )
 RETURNING *;
 

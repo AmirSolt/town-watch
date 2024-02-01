@@ -6,7 +6,6 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 CREATE TYPE region AS ENUM ('TORONTO');
 
-
 CREATE TYPE crime_type AS ENUM (
     'Assault',
     'Auto Theft',
@@ -20,16 +19,31 @@ CREATE TYPE crime_type AS ENUM (
     'Homicide'
 );
 
+-- group that user blongs to
+CREATE TYPE group AS ENUM ('USERS');
+
+
 -- ======
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    jwt_id uuid NOT NULL UNIQUE DEFAULT uuid_generate_v4(),
+    group group NOT NULL DEFAULT 'USERS',
+    autho_id uuid NOT NULL UNIQUE DEFAULT uuid_generate_v4(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     email TEXT NOT NULL UNIQUE,
-    hashed_password TEXT NOT NULL
 );
-CREATE UNIQUE INDEX user_jwt_id_key ON users("jwt_id");
+CREATE UNIQUE INDEX user_autho_id_key ON users("autho_id");
+
+-- ======
+
+CREATE TABLE otps (
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMPTZ NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    user_id INT NOT NULL,
+    CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
 
 -- ======
 
