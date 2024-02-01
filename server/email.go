@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/lestrrat-go/jwx/v2/jwa"
+	"github.com/lestrrat-go/jwx/v2/jwe"
 )
 
 type EmailPayload struct {
@@ -32,7 +35,12 @@ func (server *Server) SendEmail(toEmail, toName, fromName, subject, content stri
 		return fmt.Errorf("failed to encode payload: %w", err)
 	}
 
-	resp, err := http.Post(server.Env.EMAIL_CF_WORKER_URL, "application/json", bytes.NewBuffer(payloadBytes))
+	encrypted, err := jwe.Encrypt(payloadBytes, jwe.WithKey(jwa.A128GCM, server.Env.EMAIL_SECRET_KEY))
+	if err != nil {
+		return fmt.Errorf("failed to encrypt email payload: %w", err)
+	}
+
+	resp, err := http.Post(server.Env.EMAIL_CF_WORKER_URL, "application/json", bytes.NewBuffer(encrypted))
 	if err != nil {
 		return fmt.Errorf("failed to send request: %w", err)
 	}

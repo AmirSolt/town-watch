@@ -15,13 +15,13 @@ func RequireAuth(ginContext *gin.Context, server *server.Server) {
 	}
 
 	// parse and validate token
-	mapClaims, err := server.ParseAuthorizationToken(tokenString)
+	jwt, err := server.ParseJWT(tokenString)
 	if err != nil {
 		ginContext.AbortWithStatus(http.StatusUnauthorized)
 	}
 
 	// find user and check exp
-	user, err := server.ValidateUserAuthorization(mapClaims)
+	user, err := server.ValidateUserByJWT(ginContext, jwt)
 	if err != nil {
 		ginContext.AbortWithStatus(http.StatusUnauthorized)
 	}
