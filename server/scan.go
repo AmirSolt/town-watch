@@ -16,5 +16,15 @@ func (server *Server) Scan(scanParams models.ScanReportsParams) (*[]models.Repor
 		return nil, fmt.Errorf("error ScanReports: %w", err)
 	}
 
-	return &reports.(*[]models.Report), nil
+	// Casting reports results
+	reportCasted := make([]models.Report, len(reports))
+	for i, n := range reports {
+		report, ok := n.(models.Report)
+		if !ok {
+			return nil, fmt.Errorf("error reports type assertion failed")
+		}
+		reportCasted[i] = report
+	}
+
+	return &reportCasted, nil
 }

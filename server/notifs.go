@@ -22,7 +22,17 @@ func (server *Server) GetNotifs(currentTime time.Time) (*[]models.Notif, error) 
 		return nil, fmt.Errorf("error ScanReports: %w", err)
 	}
 
-	return &notifs.(*[]models.Notif), nil
+	// Casting notifs results
+	notifCasted := make([]models.Notif, len(notifs))
+	for i, n := range notifs {
+		notif, ok := n.(models.Notif)
+		if !ok {
+			return nil, fmt.Errorf("error notifs type assertion failed")
+		}
+		notifCasted[i] = notif
+	}
+
+	return &notifCasted, nil
 }
 
 func (server *Server) SendNotifs(notifs *[]models.Notif) error {
