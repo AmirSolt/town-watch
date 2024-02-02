@@ -95,6 +95,32 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER on_scanner_insert BEFORE INSERT OR UPDATE ON scanners
     FOR EACH ROW EXECUTE FUNCTION scanner_insert();
 
+CREATE FUNCTION scan(
+    lat DOUBLE PRECISION,
+    long DOUBLE PRECISION,
+    radius DOUBLE PRECISION,
+    region region,
+    from_date TIMESTAMPTZ,
+    to_date TIMESTAMPTZ,
+    count_limit INT
+    ) RETURNS SETOF reports AS $$
+        RETURN QUERY
+        SELECT *
+        FROM reports
+        WHERE 
+        ST_DWithin(
+            point,
+            ST_Point(lat, long, 3857),
+           radius
+        )
+        AND region = region
+        AND occur_at >= from_date
+        AND occur_at <= to_date
+        ORDER BY occur_at
+        LIMIT count_limit;
+$$ LANGUAGE plpgsql;
+
+
 -- ======
 
 CREATE TABLE notifs (
@@ -108,11 +134,11 @@ CREATE TABLE notifs (
     CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 CREATE OR REPLACE FUNCTION scanner_notifs(from_date TIMESTAMPTZ, to_date TIMESTAMPTZ, scan_reports_limit INT)
-RETURNS TABLE (notif_id uuid) AS $$
+RETURNS SETOF reports AS $$
 DECLARE
     scanner_record RECORD;
     report_ids INT[];
-    new_notif_id uuid;
+    new_notif RECORD;
 BEGIN
     FOR scanner_record IN SELECT * FROM scanners WHERE is_active = true LOOP
         report_ids := ARRAY(SELECT id FROM reports
@@ -126,13 +152,13 @@ BEGIN
         
         IF array_length(report_ids, 1) > 0 THEN
             INSERT INTO notifs (scanner_id, user_id) VALUES (scanner_record.id, scanner_record.user_id)
-            RETURNING id INTO new_notif_id;
+            RETURNING * INTO new_notif;
             
             FOREACH i IN ARRAY report_ids LOOP
-                INSERT INTO report_notifs (notif_id, report_id) VALUES (new_notif_id, i);
+                INSERT INTO report_notifs (notif_id, report_id) VALUES (new_notif.id, i);
             END LOOP;
             
-            RETURN NEXT new_notif_id;
+            RETURN NEXT new_notif;
         END IF;
         
     END LOOP;

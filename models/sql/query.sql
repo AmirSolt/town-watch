@@ -53,19 +53,7 @@ INSERT INTO reports (
 
 
 -- name: ScanReports :many
-SELECT *
-FROM reports
-WHERE 
-ST_DWithin(
-    point,
-    ST_Point($1, $2, 3857),
-    $3
-)
-AND region = $4
-AND occur_at >= $5
-AND occur_at <= $6
-ORDER BY occur_at
-LIMIT $7;
+SELECT scan($1, $2, $3, $4, $5, $6, $7);
 
 -- name: CreateScannerNotifs :many
 SELECT scanner_notifs($1, $2, $3);

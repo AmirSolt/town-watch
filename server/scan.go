@@ -1,22 +1,20 @@
 package server
 
 import (
-	"time"
+	"context"
+	"fmt"
 
 	"github.com/AmirSolt/town-watch/models"
 )
 
-type ScanParams struct {
-	Lat      float64
-	Long     float64
-	Radius   float64
-	Region   models.Region
-	FromDate time.Time
-	ToDate   time.Time
-}
+const scanReportsLimit = 50
 
-func (server *Server) Scan(scanParams ScanParams) *[]models.Report {
+func (server *Server) Scan(scanParams models.ScanReportsParams) (*[]models.Report, error) {
 	// query db
+	reports, err := server.DB.queries.ScanReports(context.Background(), scanParams)
+	if err != nil {
+		return nil, fmt.Errorf("error ScanReports: %w", err)
+	}
 
-	return &[]models.Report{}
+	return &reports.(*[]models.Report), nil
 }

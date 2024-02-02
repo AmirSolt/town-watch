@@ -64,15 +64,15 @@ type CreateScannerNotifsParams struct {
 	ScanReportsLimit int32
 }
 
-func (q *Queries) CreateScannerNotifs(ctx context.Context, arg CreateScannerNotifsParams) ([]pgtype.UUID, error) {
+func (q *Queries) CreateScannerNotifs(ctx context.Context, arg CreateScannerNotifsParams) ([]interface{}, error) {
 	rows, err := q.db.Query(ctx, createScannerNotifs, arg.FromDate, arg.ToDate, arg.ScanReportsLimit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []pgtype.UUID
+	var items []interface{}
 	for rows.Next() {
-		var scanner_notifs pgtype.UUID
+		var scanner_notifs interface{}
 		if err := rows.Scan(&scanner_notifs); err != nil {
 			return nil, err
 		}
@@ -210,64 +210,40 @@ func (q *Queries) GetUsers(ctx context.Context, dollar_1 []int32) ([]User, error
 }
 
 const scanReports = `-- name: ScanReports :many
-SELECT id, created_at, occur_at, external_src_id, neighborhood, location_type, crime_type, region, point, lat, long
-FROM reports
-WHERE 
-ST_DWithin(
-    point,
-    ST_Point($1, $2, 3857),
-    $3
-)
-AND region = $4
-AND occur_at >= $5
-AND occur_at <= $6
-ORDER BY occur_at
-LIMIT $7
+SELECT scan($1, $2, $3, $4, $5, $6, $7)
 `
 
 type ScanReportsParams struct {
-	StPoint   interface{}
-	StPoint_2 interface{}
-	StDwithin interface{}
-	Region    Region
-	OccurAt   pgtype.Timestamptz
-	OccurAt_2 pgtype.Timestamptz
-	Limit     int32
+	Lat        float64
+	Long       float64
+	Radius     float64
+	Region     Region
+	FromDate   pgtype.Timestamptz
+	ToDate     pgtype.Timestamptz
+	CountLimit int32
 }
 
-func (q *Queries) ScanReports(ctx context.Context, arg ScanReportsParams) ([]Report, error) {
+func (q *Queries) ScanReports(ctx context.Context, arg ScanReportsParams) ([]interface{}, error) {
 	rows, err := q.db.Query(ctx, scanReports,
-		arg.StPoint,
-		arg.StPoint_2,
-		arg.StDwithin,
+		arg.Lat,
+		arg.Long,
+		arg.Radius,
 		arg.Region,
-		arg.OccurAt,
-		arg.OccurAt_2,
-		arg.Limit,
+		arg.FromDate,
+		arg.ToDate,
+		arg.CountLimit,
 	)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Report
+	var items []interface{}
 	for rows.Next() {
-		var i Report
-		if err := rows.Scan(
-			&i.ID,
-			&i.CreatedAt,
-			&i.OccurAt,
-			&i.ExternalSrcID,
-			&i.Neighborhood,
-			&i.LocationType,
-			&i.CrimeType,
-			&i.Region,
-			&i.Point,
-			&i.Lat,
-			&i.Long,
-		); err != nil {
+		var scan interface{}
+		if err := rows.Scan(&scan); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, scan)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
