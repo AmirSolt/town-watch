@@ -6,13 +6,9 @@ WHERE id = $1 LIMIT 1;
 SELECT * FROM users
 WHERE email = $1 LIMIT 1;
 
--- name: GetUserByAuthoId :one
-SELECT * FROM users
-WHERE autho_id = $1 LIMIT 1;
-
 -- name: GetUsers :many
 SELECT * FROM users
-WHERE id = ANY($1::int[]);
+WHERE id = ANY($1::text[]);
 
 -- name: CreateUser :one
 INSERT INTO users (
@@ -21,6 +17,14 @@ INSERT INTO users (
     $1
 )
 RETURNING *;
+
+-- name: UpdateUserCustomerID :exec
+UPDATE users
+SET customer_id = $1
+WHERE id = $2;
+
+
+
 
 -- name: CreateOTP :one
 INSERT INTO otps (
@@ -37,6 +41,11 @@ RETURNING *;
 -- name: GetOTP :one
 SELECT * FROM otps
 WHERE id = $1 LIMIT 1;
+
+
+
+
+
 
 
 -- name: CreateReports :copyfrom

@@ -149,7 +149,7 @@ type Notif struct {
 	IsSent    bool
 	IsOpened  bool
 	ScannerID int32
-	UserID    int32
+	UserID    pgtype.UUID
 }
 
 type Otp struct {
@@ -157,7 +157,7 @@ type Otp struct {
 	CreatedAt pgtype.Timestamptz
 	ExpiresAt pgtype.Timestamptz
 	IsActive  bool
-	UserID    int32
+	UserID    pgtype.UUID
 }
 
 type Report struct {
@@ -190,13 +190,13 @@ type Scanner struct {
 	Point     interface{}
 	Lat       float64
 	Long      float64
-	UserID    int32
+	UserID    pgtype.UUID
 }
 
 type User struct {
-	ID        int32
-	Member    Member
-	AuthoID   pgtype.UUID
-	CreatedAt pgtype.Timestamptz
-	Email     string
+	ID         pgtype.UUID
+	CustomerID pgtype.Text
+	Member     Member
+	CreatedAt  pgtype.Timestamptz
+	Email      string
 }

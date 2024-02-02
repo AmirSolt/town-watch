@@ -10,14 +10,19 @@ import (
 )
 
 type Env struct {
-	IS_PROD                 string `validate:"boolean"`
-	DATABASE_URL            string `validate:"url"`
-	ARCGIS_TORONTO_URL      string `validate:"url"`
+	HOME_URL     string `validate:"url"`
+	IS_PROD      string `validate:"boolean"`
+	DATABASE_URL string `validate:"url"`
+
+	STRIPE_PRIVATE_KEY string `validate:"required"`
+
+	ARCGIS_TORONTO_URL string `validate:"url"`
+
 	EMAIL_CF_WORKER_URL     string `validate:"url"`
 	EMAIL_CF_WORKER_API_KEY string `validate:"required"`
-	PASSWORD_HASHING_SALT   string `validate:"required"`
-	JWE_SECRET_KEY          string `validate:"required"`
 	EMAIL_SECRET_KEY        string `validate:"required"`
+
+	JWE_SECRET_KEY string `validate:"required"`
 }
 
 func (server *Server) loadEnv() {
@@ -29,10 +34,10 @@ func (server *Server) loadEnv() {
 	env := Env{
 		IS_PROD:                 os.Getenv("IS_PROD"),
 		DATABASE_URL:            os.Getenv("DATABASE_URL"),
+		STRIPE_PRIVATE_KEY:      os.Getenv("STRIPE_PRIVATE_KEY"),
 		ARCGIS_TORONTO_URL:      os.Getenv("ARCGIS_TORONTO_URL"),
 		EMAIL_CF_WORKER_URL:     os.Getenv("EMAIL_CF_WORKER_URL"),
 		EMAIL_CF_WORKER_API_KEY: os.Getenv("EMAIL_CF_WORKER_API_KEY"),
-		PASSWORD_HASHING_SALT:   os.Getenv("PASSWORD_HASHING_SALT"),
 		JWE_SECRET_KEY:          os.Getenv("JWE_SECRET_KEY"),
 		EMAIL_SECRET_KEY:        os.Getenv("EMAIL_SECRET_KEY"),
 	}

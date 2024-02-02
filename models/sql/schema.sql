@@ -26,13 +26,12 @@ CREATE TYPE member AS ENUM ('USERS');
 -- ======
 
 CREATE TABLE users (
-    id SERIAL PRIMARY KEY,
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    customer_id TEXT UNIQUE,
     member member NOT NULL DEFAULT 'USERS',
-    autho_id uuid NOT NULL UNIQUE DEFAULT uuid_generate_v4(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     email TEXT NOT NULL UNIQUE
 );
-CREATE UNIQUE INDEX user_autho_id_key ON users("autho_id");
 
 -- ======
 
@@ -41,7 +40,7 @@ CREATE TABLE otps (
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMPTZ NOT NULL,
     is_active BOOLEAN NOT NULL,
-    user_id INT NOT NULL,
+    user_id uuid NOT NULL,
     CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
@@ -83,7 +82,7 @@ CREATE TABLE scanners (
     point geometry(Point, 3857) NOT NULL,
     lat DOUBLE PRECISION NOT NULL,
     long DOUBLE PRECISION NOT NULL,
-    user_id INT NOT NULL,
+    user_id uuid NOT NULL,
     CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 CREATE FUNCTION scanner_insert() RETURNS trigger AS $$
@@ -129,7 +128,7 @@ CREATE TABLE notifs (
     is_sent BOOLEAN NOT NULL DEFAULT false,
     is_opened BOOLEAN NOT NULL DEFAULT false,
     scanner_id INT NOT NULL,
-    user_id INT NOT NULL,
+    user_id uuid NOT NULL,
     CONSTRAINT fk_scanner FOREIGN KEY(scanner_id) REFERENCES scanners(id) ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
 );

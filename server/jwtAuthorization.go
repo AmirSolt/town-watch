@@ -25,7 +25,7 @@ type JWT struct {
 func (server *Server) SetJWT(ginContext *gin.Context, user *models.User) error {
 
 	jwt := JWT{
-		ID:  string(user.AuthoID.Bytes[:]),
+		ID:  string(user.ID.Bytes[:]),
 		IP:  ginContext.ClientIP(),
 		EXP: time.Now().Add(time.Second * jwtExpirationDurationSeconds).Unix(),
 	}
@@ -60,11 +60,11 @@ func (server *Server) ValidateJWTByUser(ginContext *gin.Context, jwt *JWT) (*mod
 		return nil, fmt.Errorf("error jwt is from an invalid IP")
 	}
 
-	userAuthoId := pgtype.UUID{
+	UserID := pgtype.UUID{
 		Bytes: stringToByte16(jwt.ID),
 		Valid: true,
 	}
-	user, err := server.DB.queries.GetUserByAuthoId(context.Background(), userAuthoId)
+	user, err := server.DB.queries.GetUser(context.Background(), UserID)
 	if err != nil {
 		return nil, fmt.Errorf("error jwt user not found")
 	}

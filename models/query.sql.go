@@ -27,7 +27,7 @@ RETURNING id, created_at, expires_at, is_active, user_id
 type CreateOTPParams struct {
 	ExpiresAt pgtype.Timestamptz
 	IsActive  bool
-	UserID    int32
+	UserID    pgtype.UUID
 }
 
 func (q *Queries) CreateOTP(ctx context.Context, arg CreateOTPParams) (Otp, error) {
@@ -90,7 +90,7 @@ INSERT INTO users (
 ) VALUES (
     $1
 )
-RETURNING id, member, autho_id, created_at, email
+RETURNING id, customer_id, member, created_at, email
 `
 
 func (q *Queries) CreateUser(ctx context.Context, email string) (User, error) {
@@ -98,8 +98,8 @@ func (q *Queries) CreateUser(ctx context.Context, email string) (User, error) {
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.CustomerID,
 		&i.Member,
-		&i.AuthoID,
 		&i.CreatedAt,
 		&i.Email,
 	)
@@ -125,35 +125,17 @@ func (q *Queries) GetOTP(ctx context.Context, id pgtype.UUID) (Otp, error) {
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, member, autho_id, created_at, email FROM users
+SELECT id, customer_id, member, created_at, email FROM users
 WHERE id = $1 LIMIT 1
 `
 
-func (q *Queries) GetUser(ctx context.Context, id int32) (User, error) {
+func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
 	row := q.db.QueryRow(ctx, getUser, id)
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.CustomerID,
 		&i.Member,
-		&i.AuthoID,
-		&i.CreatedAt,
-		&i.Email,
-	)
-	return i, err
-}
-
-const getUserByAuthoId = `-- name: GetUserByAuthoId :one
-SELECT id, member, autho_id, created_at, email FROM users
-WHERE autho_id = $1 LIMIT 1
-`
-
-func (q *Queries) GetUserByAuthoId(ctx context.Context, authoID pgtype.UUID) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByAuthoId, authoID)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.Member,
-		&i.AuthoID,
 		&i.CreatedAt,
 		&i.Email,
 	)
@@ -161,7 +143,7 @@ func (q *Queries) GetUserByAuthoId(ctx context.Context, authoID pgtype.UUID) (Us
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, member, autho_id, created_at, email FROM users
+SELECT id, customer_id, member, created_at, email FROM users
 WHERE email = $1 LIMIT 1
 `
 
@@ -170,8 +152,8 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	var i User
 	err := row.Scan(
 		&i.ID,
+		&i.CustomerID,
 		&i.Member,
-		&i.AuthoID,
 		&i.CreatedAt,
 		&i.Email,
 	)
@@ -179,11 +161,11 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUsers = `-- name: GetUsers :many
-SELECT id, member, autho_id, created_at, email FROM users
-WHERE id = ANY($1::int[])
+SELECT id, customer_id, member, created_at, email FROM users
+WHERE id = ANY($1::text[])
 `
 
-func (q *Queries) GetUsers(ctx context.Context, dollar_1 []int32) ([]User, error) {
+func (q *Queries) GetUsers(ctx context.Context, dollar_1 []string) ([]User, error) {
 	rows, err := q.db.Query(ctx, getUsers, dollar_1)
 	if err != nil {
 		return nil, err
@@ -194,8 +176,8 @@ func (q *Queries) GetUsers(ctx context.Context, dollar_1 []int32) ([]User, error
 		var i User
 		if err := rows.Scan(
 			&i.ID,
+			&i.CustomerID,
 			&i.Member,
-			&i.AuthoID,
 			&i.CreatedAt,
 			&i.Email,
 		); err != nil {
@@ -249,4 +231,20 @@ func (q *Queries) ScanReports(ctx context.Context, arg ScanReportsParams) ([]int
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateUserCustomerID = `-- name: UpdateUserCustomerID :exec
+UPDATE users
+SET customer_id = $1
+WHERE id = $2
+`
+
+type UpdateUserCustomerIDParams struct {
+	CustomerID pgtype.Text
+	ID         pgtype.UUID
+}
+
+func (q *Queries) UpdateUserCustomerID(ctx context.Context, arg UpdateUserCustomerIDParams) error {
+	_, err := q.db.Exec(ctx, updateUserCustomerID, arg.CustomerID, arg.ID)
+	return err
 }

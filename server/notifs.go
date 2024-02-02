@@ -37,9 +37,9 @@ func (server *Server) GetNotifs(currentTime time.Time) (*[]models.Notif, error) 
 
 func (server *Server) SendNotifs(notifs *[]models.Notif) error {
 
-	var userIds []int32
+	var userIds []string
 	for _, notif := range *notifs {
-		userIds = append(userIds, notif.UserID)
+		userIds = append(userIds, string(notif.UserID.Bytes[:]))
 	}
 
 	users, err := server.DB.queries.GetUsers(context.Background(), userIds)
