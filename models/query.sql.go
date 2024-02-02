@@ -11,6 +11,38 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createOTP = `-- name: CreateOTP :one
+INSERT INTO otps (
+    expires_at,
+    is_active,
+    user_id
+) VALUES (
+    $1,
+    $2,
+    $3
+)
+RETURNING id, created_at, expires_at, is_active, user_id
+`
+
+type CreateOTPParams struct {
+	ExpiresAt pgtype.Timestamptz
+	IsActive  bool
+	UserID    int32
+}
+
+func (q *Queries) CreateOTP(ctx context.Context, arg CreateOTPParams) (Otp, error) {
+	row := q.db.QueryRow(ctx, createOTP, arg.ExpiresAt, arg.IsActive, arg.UserID)
+	var i Otp
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.IsActive,
+		&i.UserID,
+	)
+	return i, err
+}
+
 type CreateReportsParams struct {
 	OccurAt       pgtype.Timestamptz
 	ExternalSrcID string
@@ -54,34 +86,46 @@ func (q *Queries) CreateScannerNotifs(ctx context.Context, arg CreateScannerNoti
 
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
-    email,
-    hashed_password
+    email
 ) VALUES (
-    $1, $2
+    $1
 )
-RETURNING id, jwt_id, created_at, email, hashed_password
+RETURNING id, member, autho_id, created_at, email
 `
 
-type CreateUserParams struct {
-	Email          string
-	HashedPassword string
-}
-
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, error) {
-	row := q.db.QueryRow(ctx, createUser, arg.Email, arg.HashedPassword)
+func (q *Queries) CreateUser(ctx context.Context, email string) (User, error) {
+	row := q.db.QueryRow(ctx, createUser, email)
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.JwtID,
+		&i.Member,
+		&i.AuthoID,
 		&i.CreatedAt,
 		&i.Email,
-		&i.HashedPassword,
+	)
+	return i, err
+}
+
+const getOTP = `-- name: GetOTP :one
+SELECT id, created_at, expires_at, is_active, user_id FROM otps
+WHERE id = $1 LIMIT 1
+`
+
+func (q *Queries) GetOTP(ctx context.Context, id pgtype.UUID) (Otp, error) {
+	row := q.db.QueryRow(ctx, getOTP, id)
+	var i Otp
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.IsActive,
+		&i.UserID,
 	)
 	return i, err
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, jwt_id, created_at, email, hashed_password FROM users
+SELECT id, member, autho_id, created_at, email FROM users
 WHERE id = $1 LIMIT 1
 `
 
@@ -90,16 +134,34 @@ func (q *Queries) GetUser(ctx context.Context, id int32) (User, error) {
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.JwtID,
+		&i.Member,
+		&i.AuthoID,
 		&i.CreatedAt,
 		&i.Email,
-		&i.HashedPassword,
+	)
+	return i, err
+}
+
+const getUserByAuthoId = `-- name: GetUserByAuthoId :one
+SELECT id, member, autho_id, created_at, email FROM users
+WHERE autho_id = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByAuthoId(ctx context.Context, authoID pgtype.UUID) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByAuthoId, authoID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Member,
+		&i.AuthoID,
+		&i.CreatedAt,
+		&i.Email,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, jwt_id, created_at, email, hashed_password FROM users
+SELECT id, member, autho_id, created_at, email FROM users
 WHERE email = $1 LIMIT 1
 `
 
@@ -108,34 +170,16 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.JwtID,
+		&i.Member,
+		&i.AuthoID,
 		&i.CreatedAt,
 		&i.Email,
-		&i.HashedPassword,
-	)
-	return i, err
-}
-
-const getUserByJWTId = `-- name: GetUserByJWTId :one
-SELECT id, jwt_id, created_at, email, hashed_password FROM users
-WHERE jwt_id = $1 LIMIT 1
-`
-
-func (q *Queries) GetUserByJWTId(ctx context.Context, jwtID pgtype.UUID) (User, error) {
-	row := q.db.QueryRow(ctx, getUserByJWTId, jwtID)
-	var i User
-	err := row.Scan(
-		&i.ID,
-		&i.JwtID,
-		&i.CreatedAt,
-		&i.Email,
-		&i.HashedPassword,
 	)
 	return i, err
 }
 
 const getUsers = `-- name: GetUsers :many
-SELECT id, jwt_id, created_at, email, hashed_password FROM users
+SELECT id, member, autho_id, created_at, email FROM users
 WHERE id = ANY($1::int[])
 `
 
@@ -150,10 +194,10 @@ func (q *Queries) GetUsers(ctx context.Context, dollar_1 []int32) ([]User, error
 		var i User
 		if err := rows.Scan(
 			&i.ID,
-			&i.JwtID,
+			&i.Member,
+			&i.AuthoID,
 			&i.CreatedAt,
 			&i.Email,
-			&i.HashedPassword,
 		); err != nil {
 			return nil, err
 		}

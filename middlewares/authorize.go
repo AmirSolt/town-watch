@@ -21,7 +21,7 @@ func RequireAuth(ginContext *gin.Context, server *server.Server) {
 	}
 
 	// find user and check exp
-	user, err := server.ValidateUserByJWT(ginContext, jwt)
+	user, err := server.ValidateJWTByUser(ginContext, jwt)
 	if err != nil {
 		ginContext.AbortWithStatus(http.StatusUnauthorized)
 	}

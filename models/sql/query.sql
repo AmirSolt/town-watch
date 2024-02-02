@@ -22,6 +22,21 @@ INSERT INTO users (
 )
 RETURNING *;
 
+-- name: CreateOTP :one
+INSERT INTO otps (
+    expires_at,
+    is_active,
+    user_id
+) VALUES (
+    $1,
+    $2,
+    $3
+)
+RETURNING *;
+
+-- name: GetOTP :one
+SELECT * FROM otps
+WHERE id = $1 LIMIT 1;
 
 
 -- name: CreateReports :copyfrom

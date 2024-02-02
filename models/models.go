@@ -61,6 +61,47 @@ func (ns NullCrimeType) Value() (driver.Value, error) {
 	return string(ns.CrimeType), nil
 }
 
+type Member string
+
+const (
+	MemberUSERS Member = "USERS"
+)
+
+func (e *Member) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = Member(s)
+	case string:
+		*e = Member(s)
+	default:
+		return fmt.Errorf("unsupported scan type for Member: %T", src)
+	}
+	return nil
+}
+
+type NullMember struct {
+	Member Member
+	Valid  bool // Valid is true if Member is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullMember) Scan(value interface{}) error {
+	if value == nil {
+		ns.Member, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.Member.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullMember) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.Member), nil
+}
+
 type Region string
 
 const (
@@ -111,6 +152,14 @@ type Notif struct {
 	UserID    int32
 }
 
+type Otp struct {
+	ID        pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	ExpiresAt pgtype.Timestamptz
+	IsActive  bool
+	UserID    int32
+}
+
 type Report struct {
 	ID            int32
 	CreatedAt     pgtype.Timestamptz
@@ -145,9 +194,9 @@ type Scanner struct {
 }
 
 type User struct {
-	ID             int32
-	JwtID          pgtype.UUID
-	CreatedAt      pgtype.Timestamptz
-	Email          string
-	HashedPassword string
+	ID        int32
+	Member    Member
+	AuthoID   pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	Email     string
 }

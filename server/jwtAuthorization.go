@@ -14,30 +14,30 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwe"
 )
 
-const expirationDurationSeconds = 60 * 60 * 24 * 15
+const jwtExpirationDurationSeconds = 60 * 60 * 24 * 15 // 15 days
 
 type JWT struct {
-	id  string `json:"id"`
+	ID  string `json:"id"`
 	IP  string `json:"ip"`
 	EXP int64  `json:"exp"`
 }
 
-func (server *Server) SetJWT(ginContext *gin.Context, user *models.User, jwtSecret string) error {
+func (server *Server) SetJWT(ginContext *gin.Context, user *models.User) error {
 
 	jwt := JWT{
-		id:  string(user.JwtID.Bytes[:]),
+		ID:  string(user.AuthoID.Bytes[:]),
 		IP:  ginContext.ClientIP(),
-		EXP: time.Now().Add(time.Second * expirationDurationSeconds).Unix(),
+		EXP: time.Now().Add(time.Second * jwtExpirationDurationSeconds).Unix(),
 	}
 
-	jwtEncrypted, err := encryptJWT(jwt, jwtSecret)
+	jwtEncrypted, err := encryptJWT(jwt, server.Env.JWE_SECRET_KEY)
 	if err != nil {
 		return fmt.Errorf("jwt authorization failed: %w", err)
 	}
 
 	// attach to cookie
 	ginContext.SetSameSite(http.SameSiteLaxMode)
-	ginContext.SetCookie("Authorization", string(jwtEncrypted), expirationDurationSeconds, "/", "", true, true)
+	ginContext.SetCookie("Authorization", string(jwtEncrypted), jwtExpirationDurationSeconds, "/", "", true, true)
 
 	return nil
 }
@@ -50,7 +50,7 @@ func (server *Server) ParseJWT(jwtEncrypted string) (*JWT, error) {
 	return jwt, nil
 }
 
-func (server *Server) ValidateUserByJWT(ginContext *gin.Context, jwt *JWT) (*models.User, error) {
+func (server *Server) ValidateJWTByUser(ginContext *gin.Context, jwt *JWT) (*models.User, error) {
 
 	if jwt.EXP < time.Now().Unix() {
 		return nil, fmt.Errorf("error jwt is expired")
@@ -60,11 +60,11 @@ func (server *Server) ValidateUserByJWT(ginContext *gin.Context, jwt *JWT) (*mod
 		return nil, fmt.Errorf("error jwt is from an invalid IP")
 	}
 
-	userJWTId := pgtype.UUID{
-		Bytes: stringToByte16(jwt.JWT_ID),
+	userAuthoId := pgtype.UUID{
+		Bytes: stringToByte16(jwt.ID),
 		Valid: true,
 	}
-	user, err := server.DB.queries.GetUserByJWTId(context.Background(), userJWTId)
+	user, err := server.DB.queries.GetUserByAuthoId(context.Background(), userAuthoId)
 	if err != nil {
 		return nil, fmt.Errorf("error jwt user not found")
 	}

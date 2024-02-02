@@ -20,17 +20,17 @@ CREATE TYPE crime_type AS ENUM (
 );
 
 -- group that user blongs to
-CREATE TYPE group AS ENUM ('USERS');
+CREATE TYPE member AS ENUM ('USERS');
 
 
 -- ======
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    group group NOT NULL DEFAULT 'USERS',
+    member member NOT NULL DEFAULT 'USERS',
     autho_id uuid NOT NULL UNIQUE DEFAULT uuid_generate_v4(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    email TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE
 );
 CREATE UNIQUE INDEX user_autho_id_key ON users("autho_id");
 
@@ -40,7 +40,7 @@ CREATE TABLE otps (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     expires_at TIMESTAMPTZ NOT NULL,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    is_active BOOLEAN NOT NULL,
     user_id INT NOT NULL,
     CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
