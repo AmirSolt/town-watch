@@ -143,48 +143,6 @@ func (ns NullRegion) Value() (driver.Value, error) {
 	return string(ns.Region), nil
 }
 
-type TierID string
-
-const (
-	TierIDMONTHLY TierID = "MONTHLY"
-	TierIDYEARLY  TierID = "YEARLY"
-)
-
-func (e *TierID) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = TierID(s)
-	case string:
-		*e = TierID(s)
-	default:
-		return fmt.Errorf("unsupported scan type for TierID: %T", src)
-	}
-	return nil
-}
-
-type NullTierID struct {
-	TierID TierID
-	Valid  bool // Valid is true if TierID is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullTierID) Scan(value interface{}) error {
-	if value == nil {
-		ns.TierID, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.TierID.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullTierID) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.TierID), nil
-}
-
 type Customer struct {
 	ID               int32
 	StripeCustomerID pgtype.Text
@@ -243,8 +201,8 @@ type Scanner struct {
 
 type Subscription struct {
 	ID                   int32
-	StripeSubscriptionID pgtype.Text
-	TierID               TierID
+	StripeSubscriptionID string
+	TierID               string
 	IsActive             bool
 	CustomerID           int32
 }

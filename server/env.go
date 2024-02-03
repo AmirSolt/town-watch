@@ -15,6 +15,7 @@ type Env struct {
 	DATABASE_URL string `validate:"url"`
 
 	STRIPE_PRIVATE_KEY string `validate:"required"`
+	STRIPE_WEBHOOK_KEY string `validate:"required"`
 
 	ARCGIS_TORONTO_URL string `validate:"url"`
 
@@ -36,6 +37,7 @@ func (server *Server) loadEnv() {
 		IS_PROD:                 strToBool(os.Getenv("IS_PROD")),
 		DATABASE_URL:            os.Getenv("DATABASE_URL"),
 		STRIPE_PRIVATE_KEY:      os.Getenv("STRIPE_PRIVATE_KEY"),
+		STRIPE_WEBHOOK_KEY:      os.Getenv("STRIPE_WEBHOOK_KEY"),
 		ARCGIS_TORONTO_URL:      os.Getenv("ARCGIS_TORONTO_URL"),
 		EMAIL_CF_WORKER_URL:     os.Getenv("EMAIL_CF_WORKER_URL"),
 		EMAIL_CF_WORKER_API_KEY: os.Getenv("EMAIL_CF_WORKER_API_KEY"),

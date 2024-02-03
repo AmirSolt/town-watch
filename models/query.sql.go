@@ -125,6 +125,20 @@ func (q *Queries) CreateUser(ctx context.Context, email string) (User, error) {
 	return i, err
 }
 
+const getCustomerByUserID = `-- name: GetCustomerByUserID :one
+SELECT id, stripe_customer_id, user_id 
+FROM customers
+WHERE user_id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetCustomerByUserID(ctx context.Context, userID pgtype.UUID) (Customer, error) {
+	row := q.db.QueryRow(ctx, getCustomerByUserID, userID)
+	var i Customer
+	err := row.Scan(&i.ID, &i.StripeCustomerID, &i.UserID)
+	return i, err
+}
+
 const getOTP = `-- name: GetOTP :one
 SELECT id, created_at, expires_at, is_active, user_id FROM otps
 WHERE id = $1 LIMIT 1

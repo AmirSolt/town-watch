@@ -23,6 +23,8 @@ func (server *Server) LoadServer() {
 	server.loadEnv()
 
 	server.loadDB()
+
+	server.loadStripe()
 }
 
 func (server *Server) KillServer() {

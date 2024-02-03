@@ -18,6 +18,13 @@ INSERT INTO users (
 )
 RETURNING *;
 
+
+-- name: GetCustomerByUserID :one
+SELECT * 
+FROM customers
+WHERE user_id = $1
+LIMIT 1;
+
 -- name: CreateCustomer :one
 INSERT INTO customers( 
     stripe_customer_id,
