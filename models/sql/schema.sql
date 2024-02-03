@@ -19,6 +19,9 @@ CREATE TYPE crime_type AS ENUM (
     'Homicide'
 );
 
+CREATE TYPE tier_id AS ENUM ('MONTHLY', 'YEARLY');
+
+
 -- group that user blongs to
 CREATE TYPE member AS ENUM ('USERS');
 
@@ -27,11 +30,32 @@ CREATE TYPE member AS ENUM ('USERS');
 
 CREATE TABLE users (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    customer_id TEXT UNIQUE,
     member member NOT NULL DEFAULT 'USERS',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     email TEXT NOT NULL UNIQUE
 );
+
+-- ======
+
+CREATE TABLE customers (
+    id SERIAL PRIMARY KEY,
+    stripe_customer_id TEXT UNIQUE,
+
+    user_id uuid NOT NULL,
+    CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE subscriptions (
+    id SERIAL PRIMARY KEY,
+
+    stripe_subscription_id TEXT UNIQUE,
+    tier_id tier_id NOT NULL,
+    is_active BOOLEAN NOT NULL,
+
+    customer_id INT NOT NULL,
+    CONSTRAINT fk_customer FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
 
 -- ======
 

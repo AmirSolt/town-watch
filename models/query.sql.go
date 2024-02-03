@@ -11,6 +11,26 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createCustomer = `-- name: CreateCustomer :one
+INSERT INTO customers( 
+    stripe_customer_id,
+    user_id
+) VALUES ($1,$2)
+RETURNING id, stripe_customer_id, user_id
+`
+
+type CreateCustomerParams struct {
+	StripeCustomerID pgtype.Text
+	UserID           pgtype.UUID
+}
+
+func (q *Queries) CreateCustomer(ctx context.Context, arg CreateCustomerParams) (Customer, error) {
+	row := q.db.QueryRow(ctx, createCustomer, arg.StripeCustomerID, arg.UserID)
+	var i Customer
+	err := row.Scan(&i.ID, &i.StripeCustomerID, &i.UserID)
+	return i, err
+}
+
 const createOTP = `-- name: CreateOTP :one
 INSERT INTO otps (
     expires_at,
@@ -90,7 +110,7 @@ INSERT INTO users (
 ) VALUES (
     $1
 )
-RETURNING id, customer_id, member, created_at, email
+RETURNING id, member, created_at, email
 `
 
 func (q *Queries) CreateUser(ctx context.Context, email string) (User, error) {
@@ -98,7 +118,6 @@ func (q *Queries) CreateUser(ctx context.Context, email string) (User, error) {
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.CustomerID,
 		&i.Member,
 		&i.CreatedAt,
 		&i.Email,
@@ -125,7 +144,7 @@ func (q *Queries) GetOTP(ctx context.Context, id pgtype.UUID) (Otp, error) {
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, customer_id, member, created_at, email FROM users
+SELECT id, member, created_at, email FROM users
 WHERE id = $1 LIMIT 1
 `
 
@@ -134,7 +153,6 @@ func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.CustomerID,
 		&i.Member,
 		&i.CreatedAt,
 		&i.Email,
@@ -143,7 +161,7 @@ func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, customer_id, member, created_at, email FROM users
+SELECT id, member, created_at, email FROM users
 WHERE email = $1 LIMIT 1
 `
 
@@ -152,7 +170,6 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.CustomerID,
 		&i.Member,
 		&i.CreatedAt,
 		&i.Email,
@@ -161,7 +178,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUsers = `-- name: GetUsers :many
-SELECT id, customer_id, member, created_at, email FROM users
+SELECT id, member, created_at, email FROM users
 WHERE id = ANY($1::text[])
 `
 
@@ -176,7 +193,6 @@ func (q *Queries) GetUsers(ctx context.Context, dollar_1 []string) ([]User, erro
 		var i User
 		if err := rows.Scan(
 			&i.ID,
-			&i.CustomerID,
 			&i.Member,
 			&i.CreatedAt,
 			&i.Email,
@@ -231,20 +247,4 @@ func (q *Queries) ScanReports(ctx context.Context, arg ScanReportsParams) ([]int
 		return nil, err
 	}
 	return items, nil
-}
-
-const updateUserCustomerID = `-- name: UpdateUserCustomerID :exec
-UPDATE users
-SET customer_id = $1
-WHERE id = $2
-`
-
-type UpdateUserCustomerIDParams struct {
-	CustomerID pgtype.Text
-	ID         pgtype.UUID
-}
-
-func (q *Queries) UpdateUserCustomerID(ctx context.Context, arg UpdateUserCustomerIDParams) error {
-	_, err := q.db.Exec(ctx, updateUserCustomerID, arg.CustomerID, arg.ID)
-	return err
 }
