@@ -11,7 +11,7 @@ import (
 
 type Env struct {
 	HOME_URL     string `validate:"url"`
-	IS_PROD      string `validate:"boolean"`
+	IS_PROD      bool   `validate:"boolean"`
 	DATABASE_URL string `validate:"url"`
 
 	STRIPE_PRIVATE_KEY string `validate:"required"`
@@ -32,7 +32,8 @@ func (server *Server) loadEnv() {
 	}
 
 	env := Env{
-		IS_PROD:                 os.Getenv("IS_PROD"),
+		HOME_URL:                os.Getenv("HOME_URL"),
+		IS_PROD:                 strToBool(os.Getenv("IS_PROD")),
 		DATABASE_URL:            os.Getenv("DATABASE_URL"),
 		STRIPE_PRIVATE_KEY:      os.Getenv("STRIPE_PRIVATE_KEY"),
 		ARCGIS_TORONTO_URL:      os.Getenv("ARCGIS_TORONTO_URL"),
@@ -49,4 +50,8 @@ func (server *Server) loadEnv() {
 	}
 
 	server.Env = &env
+}
+
+func strToBool(s string) bool {
+	return s == "true"
 }

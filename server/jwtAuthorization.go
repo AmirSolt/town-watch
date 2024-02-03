@@ -22,6 +22,28 @@ type JWT struct {
 	EXP int64  `json:"exp"`
 }
 
+func (server *Server) ValidateAutho(ginContext *gin.Context) (*models.User, error) {
+	// get it from cookie
+	tokenString, err := ginContext.Cookie("Authorization")
+	if err != nil {
+		return nil, fmt.Errorf("jwt not found on cookie: %w", err)
+	}
+
+	// parse and validate token
+	jwt, err := server.ParseJWT(tokenString)
+	if err != nil {
+		return nil, fmt.Errorf("jwt parse failed: %w", err)
+	}
+
+	// find user and check exp
+	user, err := server.ValidateJWTByUser(ginContext, jwt)
+	if err != nil {
+		return nil, fmt.Errorf("jwt validation by user failed: %w", err)
+	}
+
+	return user, nil
+}
+
 func (server *Server) SetJWT(ginContext *gin.Context, user *models.User) error {
 
 	jwt := JWT{
