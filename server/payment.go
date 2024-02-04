@@ -126,11 +126,11 @@ func (server *Server) createCheckoutSession(user *models.User, checkoutConfig Ch
 	return result, nil
 }
 
-func (server *Server) CancelSubscription(subscriptionID SubscriptionID) error {
+func (server *Server) CancelSubscription(subscriptionID SubscriptionID, comment string) error {
 	// cancel stripe subsc
 	_, errSub := subscription.Cancel(string(subscriptionID), &stripe.SubscriptionCancelParams{
 		CancellationDetails: &stripe.SubscriptionCancelCancellationDetailsParams{
-			Feedback: stripe.String("switched_service"),
+			Comment: stripe.String(comment),
 		},
 	})
 	if errSub != nil {
@@ -190,18 +190,19 @@ func (server *Server) handleStripeEvents(event stripe.Event) error {
 
 		// deactivate subsc in DB
 		deSubscription, err := server.DB.queries.DeactivateSubscriptionByCustomerID(context.Background(), customer.ID)
-		if err != nil {
+		if err != nil && err != sql.ErrNoRows {
 			return fmt.Errorf("deactivating customer active subscription: %w", err)
 		}
-
-		// cancel stripe subsc
-		_, errSub := subscription.Cancel(deSubscription.StripeSubscriptionID, &stripe.SubscriptionCancelParams{
-			CancellationDetails: &stripe.SubscriptionCancelCancellationDetailsParams{
-				Feedback: stripe.String("switched_service"),
-			},
-		})
-		if errSub != nil {
-			return fmt.Errorf("canceling stripe subscription: %w", errSub)
+		if err != sql.ErrNoRows {
+			// cancel stripe subsc
+			_, errSub := subscription.Cancel(deSubscription.StripeSubscriptionID, &stripe.SubscriptionCancelParams{
+				CancellationDetails: &stripe.SubscriptionCancelCancellationDetailsParams{
+					Feedback: stripe.String("switched_service"),
+				},
+			})
+			if errSub != nil {
+				return fmt.Errorf("canceling stripe subscription: %w", errSub)
+			}
 		}
 
 		// create this subscription
