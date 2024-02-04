@@ -19,6 +19,13 @@ INSERT INTO users (
 RETURNING *;
 
 
+
+-- name: GetCustomerByStripeID :one
+SELECT * 
+FROM customers
+WHERE stripe_customer_id = $1
+LIMIT 1;
+
 -- name: GetCustomerByUserID :one
 SELECT * 
 FROM customers
@@ -30,6 +37,36 @@ INSERT INTO customers(
     stripe_customer_id,
     user_id
 ) VALUES ($1,$2)
+RETURNING *;
+
+
+
+
+-- name: CreateSubscription :one
+INSERT INTO subscriptions( 
+    stripe_subscription_id,
+    tier_id,
+    is_active,
+    customer_id
+) VALUES ($1,$2,$3,$4)
+RETURNING *;
+
+-- name: GetActiveSubscriptionByCustomer :one
+SELECT * 
+FROM subscriptions
+WHERE customer_id = $1 
+AND is_active = TRUE
+LIMIT 1;
+
+-- name: DeactivateSubscriptionByStripeID :exec
+UPDATE subscriptions
+SET is_active = FALSE
+WHERE stripe_subscription_id=$1;
+
+-- name: DeactivateSubscriptionByCustomerID :one
+UPDATE subscriptions
+SET is_active = FALSE
+WHERE customer_id=$1
 RETURNING *;
 
 

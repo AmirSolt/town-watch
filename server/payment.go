@@ -11,9 +11,10 @@ import (
 
 	"github.com/AmirSolt/town-watch/models"
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stripe/stripe-go/v76"
 	"github.com/stripe/stripe-go/v76/checkout/session"
+	"github.com/stripe/stripe-go/v76/customer"
+	"github.com/stripe/stripe-go/v76/subscription"
 	"github.com/stripe/stripe-go/v76/webhook"
 	"github.com/stripe/stripe-go/v76/webhookendpoint"
 )
@@ -78,10 +79,10 @@ func (server *Server) createCheckoutSession(user *models.User, checkoutConfig Ch
 	}
 
 	var stripeCustomerID *string
-	if customer.StripeCustomerID.Valid {
+	if customer.StripeCustomerID == "" {
 		stripeCustomerID = nil
 	} else {
-		stripeCustomerID = &customer.StripeCustomerID.String
+		stripeCustomerID = &customer.StripeCustomerID
 	}
 
 	params := &stripe.CheckoutSessionParams{
@@ -114,7 +115,7 @@ func (server *Server) createCheckoutSession(user *models.User, checkoutConfig Ch
 
 	if stripeCustomerID == nil {
 		_, err := server.DB.queries.CreateCustomer(context.Background(), models.CreateCustomerParams{
-			StripeCustomerID: pgtype.Text{String: result.Customer.ID},
+			StripeCustomerID: result.Customer.ID,
 			UserID:           user.ID,
 		})
 		if err != nil {
@@ -125,7 +126,21 @@ func (server *Server) createCheckoutSession(user *models.User, checkoutConfig Ch
 	return result, nil
 }
 
-func (server *Server) handleStripeEvents(ginContext *gin.Context) {
+func (server *Server) CancelSubscription(subscriptionID SubscriptionID) error {
+	// cancel stripe subsc
+	_, errSub := subscription.Cancel(string(subscriptionID), &stripe.SubscriptionCancelParams{
+		CancellationDetails: &stripe.SubscriptionCancelCancellationDetailsParams{
+			Feedback: stripe.String("switched_service"),
+		},
+	})
+	if errSub != nil {
+		return fmt.Errorf("canceling stripe subscription: %w", errSub)
+	}
+
+	return nil
+}
+
+func (server *Server) HandleStripeWebhook(ginContext *gin.Context) {
 	req := ginContext.Request
 	w := ginContext.Writer
 
@@ -141,23 +156,82 @@ func (server *Server) handleStripeEvents(ginContext *gin.Context) {
 	endpointSecret := server.Env.STRIPE_WEBHOOK_KEY
 	event, err := webhook.ConstructEvent(payload, req.Header.Get("Stripe-Signature"),
 		endpointSecret)
-
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error verifying webhook signature: %v\n", err)
 		w.WriteHeader(http.StatusBadRequest) // Return a 400 error on a bad signature
 		return
 	}
 
-	// Unmarshal the event data into an appropriate struct depending on its Type
-	fmt.Fprintf(os.Stderr, "Unhandled event type: %s\n", event.Type)
-	// if event.Type == "customer.subscription.created" {
-	// 	c, err := customer.Get(event.Data.Object["customer"].(string), nil)
-	// 	if err != nil {
-	// 		log.Fatal(err)
-	// 	}
-	// 	email := c.Metadata["FinalEmail"]
-	// 	log.Println("Subscription created by", email)
-	// }
+	if err := server.handleStripeEvents(event); err != nil {
+		fmt.Fprintf(os.Stderr, "Error handling event: %v\n", err)
+		w.WriteHeader(http.StatusBadRequest) // Return a 400 error on a bad signature
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func (server *Server) handleStripeEvents(event stripe.Event) error {
+	if event.Type == "customer.subscription.created" {
+		cust, err := customer.Get(event.Data.Object["customer"].(string), nil)
+		if err != nil {
+			return fmt.Errorf("converting raw event to customer object: %w", err)
+		}
+		newSubsc, err := subscription.Get(event.Data.Object["subscription"].(string), nil)
+		if err != nil {
+			return fmt.Errorf("converting raw event to subscription object: %w", err)
+		}
+
+		// find customer
+		customer, err := server.DB.queries.GetCustomerByStripeID(context.Background(), cust.ID)
+		if err != nil {
+			return fmt.Errorf("could not find customer by stripe id: %w", err)
+		}
+
+		// deactivate subsc in DB
+		deSubscription, err := server.DB.queries.DeactivateSubscriptionByCustomerID(context.Background(), customer.ID)
+		if err != nil {
+			return fmt.Errorf("deactivating customer active subscription: %w", err)
+		}
+
+		// cancel stripe subsc
+		_, errSub := subscription.Cancel(deSubscription.StripeSubscriptionID, &stripe.SubscriptionCancelParams{
+			CancellationDetails: &stripe.SubscriptionCancelCancellationDetailsParams{
+				Feedback: stripe.String("switched_service"),
+			},
+		})
+		if errSub != nil {
+			return fmt.Errorf("canceling stripe subscription: %w", errSub)
+		}
+
+		// create this subscription
+		_, errSubsc := server.DB.queries.CreateSubscription(context.Background(), models.CreateSubscriptionParams{
+			StripeSubscriptionID: newSubsc.ID,
+			TierID:               "",
+			IsActive:             true,
+			CustomerID:           customer.ID,
+		})
+		if errSubsc != nil {
+			return fmt.Errorf("creating new subscription: %w", errSubsc)
+		}
+
+		return nil
+
+	}
+	if event.Type == "customer.subscription.deleted" {
+		subs, err := subscription.Get(event.Data.Object["subscription"].(string), nil)
+		if err != nil {
+			return fmt.Errorf("converting raw event to subscription object: %w", err)
+		}
+
+		errDe := server.DB.queries.DeactivateSubscriptionByStripeID(context.Background(), subs.ID)
+		if errDe != nil {
+			return fmt.Errorf("deactivating subscription by id: %w", err)
+		}
+
+		return nil
+	}
+
+	fmt.Fprintf(os.Stderr, "Unhandled event type: %s\n", event.Type)
+	return nil
 }

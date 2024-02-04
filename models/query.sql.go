@@ -20,7 +20,7 @@ RETURNING id, stripe_customer_id, user_id
 `
 
 type CreateCustomerParams struct {
-	StripeCustomerID pgtype.Text
+	StripeCustomerID string
 	UserID           pgtype.UUID
 }
 
@@ -104,6 +104,41 @@ func (q *Queries) CreateScannerNotifs(ctx context.Context, arg CreateScannerNoti
 	return items, nil
 }
 
+const createSubscription = `-- name: CreateSubscription :one
+INSERT INTO subscriptions( 
+    stripe_subscription_id,
+    tier_id,
+    is_active,
+    customer_id
+) VALUES ($1,$2,$3,$4)
+RETURNING id, stripe_subscription_id, tier_id, is_active, customer_id
+`
+
+type CreateSubscriptionParams struct {
+	StripeSubscriptionID string
+	TierID               string
+	IsActive             bool
+	CustomerID           int32
+}
+
+func (q *Queries) CreateSubscription(ctx context.Context, arg CreateSubscriptionParams) (Subscription, error) {
+	row := q.db.QueryRow(ctx, createSubscription,
+		arg.StripeSubscriptionID,
+		arg.TierID,
+		arg.IsActive,
+		arg.CustomerID,
+	)
+	var i Subscription
+	err := row.Scan(
+		&i.ID,
+		&i.StripeSubscriptionID,
+		&i.TierID,
+		&i.IsActive,
+		&i.CustomerID,
+	)
+	return i, err
+}
+
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
     email
@@ -122,6 +157,72 @@ func (q *Queries) CreateUser(ctx context.Context, email string) (User, error) {
 		&i.CreatedAt,
 		&i.Email,
 	)
+	return i, err
+}
+
+const deactivateSubscriptionByCustomerID = `-- name: DeactivateSubscriptionByCustomerID :one
+UPDATE subscriptions
+SET is_active = FALSE
+WHERE customer_id=$1
+RETURNING id, stripe_subscription_id, tier_id, is_active, customer_id
+`
+
+func (q *Queries) DeactivateSubscriptionByCustomerID(ctx context.Context, customerID int32) (Subscription, error) {
+	row := q.db.QueryRow(ctx, deactivateSubscriptionByCustomerID, customerID)
+	var i Subscription
+	err := row.Scan(
+		&i.ID,
+		&i.StripeSubscriptionID,
+		&i.TierID,
+		&i.IsActive,
+		&i.CustomerID,
+	)
+	return i, err
+}
+
+const deactivateSubscriptionByStripeID = `-- name: DeactivateSubscriptionByStripeID :exec
+UPDATE subscriptions
+SET is_active = FALSE
+WHERE stripe_subscription_id=$1
+`
+
+func (q *Queries) DeactivateSubscriptionByStripeID(ctx context.Context, stripeSubscriptionID string) error {
+	_, err := q.db.Exec(ctx, deactivateSubscriptionByStripeID, stripeSubscriptionID)
+	return err
+}
+
+const getActiveSubscriptionByCustomer = `-- name: GetActiveSubscriptionByCustomer :one
+SELECT id, stripe_subscription_id, tier_id, is_active, customer_id 
+FROM subscriptions
+WHERE customer_id = $1 
+AND is_active = TRUE
+LIMIT 1
+`
+
+func (q *Queries) GetActiveSubscriptionByCustomer(ctx context.Context, customerID int32) (Subscription, error) {
+	row := q.db.QueryRow(ctx, getActiveSubscriptionByCustomer, customerID)
+	var i Subscription
+	err := row.Scan(
+		&i.ID,
+		&i.StripeSubscriptionID,
+		&i.TierID,
+		&i.IsActive,
+		&i.CustomerID,
+	)
+	return i, err
+}
+
+const getCustomerByStripeID = `-- name: GetCustomerByStripeID :one
+SELECT id, stripe_customer_id, user_id 
+FROM customers
+WHERE stripe_customer_id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetCustomerByStripeID(ctx context.Context, stripeCustomerID string) (Customer, error) {
+	row := q.db.QueryRow(ctx, getCustomerByStripeID, stripeCustomerID)
+	var i Customer
+	err := row.Scan(&i.ID, &i.StripeCustomerID, &i.UserID)
 	return i, err
 }
 

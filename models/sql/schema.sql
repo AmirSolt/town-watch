@@ -53,7 +53,17 @@ CREATE TABLE subscriptions (
     customer_id INT NOT NULL,
     CONSTRAINT fk_customer FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE CASCADE ON UPDATE CASCADE
 );
-
+CREATE FUNCTION subscription_insert() RETURNS trigger AS $$
+    BEGIN
+        IF EXISTS (SELECT id FROM subscriptions WHERE customer_id = NEW.customer_id)
+        BEGIN
+            RAISE EXCEPTION 'POSTGRESQL ERROR: active subscriptions already exist for this customer. on_subscription_insert trigger.';
+        END
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+CREATE TRIGGER on_subscription_insert BEFORE INSERT OR UPDATE ON subscriptions
+    FOR EACH ROW EXECUTE FUNCTION subscription_insert();
 
 -- ======
 

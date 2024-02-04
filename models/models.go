@@ -145,7 +145,7 @@ func (ns NullRegion) Value() (driver.Value, error) {
 
 type Customer struct {
 	ID               int32
-	StripeCustomerID pgtype.Text
+	StripeCustomerID string
 	UserID           pgtype.UUID
 }
 
