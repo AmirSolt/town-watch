@@ -61,47 +61,6 @@ func (ns NullCrimeType) Value() (driver.Value, error) {
 	return string(ns.CrimeType), nil
 }
 
-type Member string
-
-const (
-	MemberUSERS Member = "USERS"
-)
-
-func (e *Member) Scan(src interface{}) error {
-	switch s := src.(type) {
-	case []byte:
-		*e = Member(s)
-	case string:
-		*e = Member(s)
-	default:
-		return fmt.Errorf("unsupported scan type for Member: %T", src)
-	}
-	return nil
-}
-
-type NullMember struct {
-	Member Member
-	Valid  bool // Valid is true if Member is not NULL
-}
-
-// Scan implements the Scanner interface.
-func (ns *NullMember) Scan(value interface{}) error {
-	if value == nil {
-		ns.Member, ns.Valid = "", false
-		return nil
-	}
-	ns.Valid = true
-	return ns.Member.Scan(value)
-}
-
-// Value implements the driver Valuer interface.
-func (ns NullMember) Value() (driver.Value, error) {
-	if !ns.Valid {
-		return nil, nil
-	}
-	return string(ns.Member), nil
-}
-
 type Region string
 
 const (
@@ -143,10 +102,47 @@ func (ns NullRegion) Value() (driver.Value, error) {
 	return string(ns.Region), nil
 }
 
-type Customer struct {
-	ID               int32
-	StripeCustomerID string
-	UserID           pgtype.UUID
+type Tier string
+
+const (
+	TierT0 Tier = "t0"
+	TierT1 Tier = "t1"
+	TierT2 Tier = "t2"
+)
+
+func (e *Tier) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = Tier(s)
+	case string:
+		*e = Tier(s)
+	default:
+		return fmt.Errorf("unsupported scan type for Tier: %T", src)
+	}
+	return nil
+}
+
+type NullTier struct {
+	Tier  Tier
+	Valid bool // Valid is true if Tier is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullTier) Scan(value interface{}) error {
+	if value == nil {
+		ns.Tier, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.Tier.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullTier) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.Tier), nil
 }
 
 type Notif struct {
@@ -199,17 +195,11 @@ type Scanner struct {
 	UserID    pgtype.UUID
 }
 
-type Subscription struct {
-	ID                   int32
-	StripeSubscriptionID string
-	TierID               string
-	IsActive             bool
-	CustomerID           int32
-}
-
 type User struct {
-	ID        pgtype.UUID
-	Member    Member
-	CreatedAt pgtype.Timestamptz
-	Email     string
+	ID                   pgtype.UUID
+	Tier                 Tier
+	CreatedAt            pgtype.Timestamptz
+	Email                string
+	StripeCustomerID     pgtype.Text
+	StripeSubscriptionID pgtype.Text
 }

@@ -6,6 +6,10 @@ WHERE id = $1 LIMIT 1;
 SELECT * FROM users
 WHERE email = $1 LIMIT 1;
 
+-- name: GetUserByStripeCustomerID :one
+SELECT * FROM users
+WHERE stripe_customer_id = $1 LIMIT 1;
+
 -- name: GetUsers :many
 SELECT * FROM users
 WHERE id = ANY($1::text[]);
@@ -18,50 +22,17 @@ INSERT INTO users (
 )
 RETURNING *;
 
+-- name: UpdateUserStripeCustomerID :exec
+UPDATE users
+SET stripe_customer_id = $1
+WHERE id = $2;
 
-
--- name: GetCustomerByStripeID :one
-SELECT * 
-FROM customers
-WHERE stripe_customer_id = $1
-LIMIT 1;
-
--- name: GetCustomerByUserID :one
-SELECT * 
-FROM customers
-WHERE user_id = $1
-LIMIT 1;
-
-
-
-
-
--- name: CreateSubscription :one
-INSERT INTO subscriptions( 
-    stripe_subscription_id,
-    tier_id,
-    is_active,
-    customer_id
-) VALUES ($1,$2,$3,$4)
-RETURNING *;
-
--- name: GetActiveSubscriptionByCustomer :one
-SELECT * 
-FROM subscriptions
-WHERE customer_id = $1 
-AND is_active = TRUE
-LIMIT 1;
-
--- name: DeactivateSubscriptionByStripeID :exec
-UPDATE subscriptions
-SET is_active = FALSE
-WHERE stripe_subscription_id=$1;
-
--- name: DeactivateSubscriptionByCustomerID :one
-UPDATE subscriptions
-SET is_active = FALSE
-WHERE customer_id=$1
-RETURNING *;
+-- name: UpdateUserSubAndTier :exec
+UPDATE users
+SET 
+stripe_subscription_id = $1,
+tier = $2
+WHERE id = $3;
 
 
 

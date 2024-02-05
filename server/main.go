@@ -3,6 +3,7 @@ package server
 import (
 	"path/filepath"
 
+	"github.com/AmirSolt/town-watch/models"
 	"github.com/gin-gonic/gin"
 )
 
@@ -11,7 +12,7 @@ type Server struct {
 	Engine      *gin.Engine
 	Env         *Env
 	DB          *DB
-	TierConfigs map[TierID]TierConfig
+	TierConfigs map[models.Tier]TierConfig
 }
 
 func (server *Server) LoadServer() {

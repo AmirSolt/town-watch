@@ -21,50 +21,21 @@ CREATE TYPE crime_type AS ENUM (
 
 
 -- group that user blongs to
-CREATE TYPE member AS ENUM ('USERS');
+CREATE TYPE tier AS ENUM ('t0', 't1', 't2');
 
 
 -- ======
 
 CREATE TABLE users (
     id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    member member NOT NULL DEFAULT 'USERS',
+    tier tier NOT NULL DEFAULT 't0',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    email TEXT NOT NULL UNIQUE
+    email TEXT NOT NULL UNIQUE,
+
+    stripe_customer_id TEXT UNIQUE,
+    stripe_subscription_id TEXT UNIQUE
 );
 
--- ======
-
-CREATE TABLE customers (
-    id SERIAL PRIMARY KEY,
-    stripe_customer_id TEXT NOT NULL UNIQUE,
-
-    user_id uuid NOT NULL,
-    CONSTRAINT fk_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE
-);
-
-
-CREATE TABLE subscriptions (
-    id SERIAL PRIMARY KEY,
-
-    stripe_subscription_id TEXT NOT NULL UNIQUE,
-    tier_id TEXT NOT NULL,
-    is_active BOOLEAN NOT NULL,
-
-    customer_id INT NOT NULL,
-    CONSTRAINT fk_customer FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE CASCADE ON UPDATE CASCADE
-);
-CREATE FUNCTION subscription_insert() RETURNS trigger AS $$
-    BEGIN
-        IF EXISTS (SELECT id FROM subscriptions WHERE customer_id = NEW.customer_id AND is_active = TRUE)
-        BEGIN
-            RAISE EXCEPTION 'POSTGRESQL ERROR: active subscriptions already exist for this customer. on_subscription_insert trigger.';
-        END
-        RETURN NEW;
-    END;
-$$ LANGUAGE plpgsql;
-CREATE TRIGGER on_subscription_insert BEFORE INSERT OR UPDATE ON subscriptions
-    FOR EACH ROW EXECUTE FUNCTION subscription_insert();
 
 -- ======
 

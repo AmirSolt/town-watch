@@ -11,26 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createCustomer = `-- name: CreateCustomer :one
-INSERT INTO customers( 
-    stripe_customer_id,
-    user_id
-) VALUES ($1,$2)
-RETURNING id, stripe_customer_id, user_id
-`
-
-type CreateCustomerParams struct {
-	StripeCustomerID string
-	UserID           pgtype.UUID
-}
-
-func (q *Queries) CreateCustomer(ctx context.Context, arg CreateCustomerParams) (Customer, error) {
-	row := q.db.QueryRow(ctx, createCustomer, arg.StripeCustomerID, arg.UserID)
-	var i Customer
-	err := row.Scan(&i.ID, &i.StripeCustomerID, &i.UserID)
-	return i, err
-}
-
 const createOTP = `-- name: CreateOTP :one
 INSERT INTO otps (
     expires_at,
@@ -104,48 +84,13 @@ func (q *Queries) CreateScannerNotifs(ctx context.Context, arg CreateScannerNoti
 	return items, nil
 }
 
-const createSubscription = `-- name: CreateSubscription :one
-INSERT INTO subscriptions( 
-    stripe_subscription_id,
-    tier_id,
-    is_active,
-    customer_id
-) VALUES ($1,$2,$3,$4)
-RETURNING id, stripe_subscription_id, tier_id, is_active, customer_id
-`
-
-type CreateSubscriptionParams struct {
-	StripeSubscriptionID string
-	TierID               string
-	IsActive             bool
-	CustomerID           int32
-}
-
-func (q *Queries) CreateSubscription(ctx context.Context, arg CreateSubscriptionParams) (Subscription, error) {
-	row := q.db.QueryRow(ctx, createSubscription,
-		arg.StripeSubscriptionID,
-		arg.TierID,
-		arg.IsActive,
-		arg.CustomerID,
-	)
-	var i Subscription
-	err := row.Scan(
-		&i.ID,
-		&i.StripeSubscriptionID,
-		&i.TierID,
-		&i.IsActive,
-		&i.CustomerID,
-	)
-	return i, err
-}
-
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (
     email
 ) VALUES (
     $1
 )
-RETURNING id, member, created_at, email
+RETURNING id, tier, created_at, email, stripe_customer_id, stripe_subscription_id
 `
 
 func (q *Queries) CreateUser(ctx context.Context, email string) (User, error) {
@@ -153,90 +98,12 @@ func (q *Queries) CreateUser(ctx context.Context, email string) (User, error) {
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.Member,
+		&i.Tier,
 		&i.CreatedAt,
 		&i.Email,
-	)
-	return i, err
-}
-
-const deactivateSubscriptionByCustomerID = `-- name: DeactivateSubscriptionByCustomerID :one
-UPDATE subscriptions
-SET is_active = FALSE
-WHERE customer_id=$1
-RETURNING id, stripe_subscription_id, tier_id, is_active, customer_id
-`
-
-func (q *Queries) DeactivateSubscriptionByCustomerID(ctx context.Context, customerID int32) (Subscription, error) {
-	row := q.db.QueryRow(ctx, deactivateSubscriptionByCustomerID, customerID)
-	var i Subscription
-	err := row.Scan(
-		&i.ID,
+		&i.StripeCustomerID,
 		&i.StripeSubscriptionID,
-		&i.TierID,
-		&i.IsActive,
-		&i.CustomerID,
 	)
-	return i, err
-}
-
-const deactivateSubscriptionByStripeID = `-- name: DeactivateSubscriptionByStripeID :exec
-UPDATE subscriptions
-SET is_active = FALSE
-WHERE stripe_subscription_id=$1
-`
-
-func (q *Queries) DeactivateSubscriptionByStripeID(ctx context.Context, stripeSubscriptionID string) error {
-	_, err := q.db.Exec(ctx, deactivateSubscriptionByStripeID, stripeSubscriptionID)
-	return err
-}
-
-const getActiveSubscriptionByCustomer = `-- name: GetActiveSubscriptionByCustomer :one
-SELECT id, stripe_subscription_id, tier_id, is_active, customer_id 
-FROM subscriptions
-WHERE customer_id = $1 
-AND is_active = TRUE
-LIMIT 1
-`
-
-func (q *Queries) GetActiveSubscriptionByCustomer(ctx context.Context, customerID int32) (Subscription, error) {
-	row := q.db.QueryRow(ctx, getActiveSubscriptionByCustomer, customerID)
-	var i Subscription
-	err := row.Scan(
-		&i.ID,
-		&i.StripeSubscriptionID,
-		&i.TierID,
-		&i.IsActive,
-		&i.CustomerID,
-	)
-	return i, err
-}
-
-const getCustomerByStripeID = `-- name: GetCustomerByStripeID :one
-SELECT id, stripe_customer_id, user_id 
-FROM customers
-WHERE stripe_customer_id = $1
-LIMIT 1
-`
-
-func (q *Queries) GetCustomerByStripeID(ctx context.Context, stripeCustomerID string) (Customer, error) {
-	row := q.db.QueryRow(ctx, getCustomerByStripeID, stripeCustomerID)
-	var i Customer
-	err := row.Scan(&i.ID, &i.StripeCustomerID, &i.UserID)
-	return i, err
-}
-
-const getCustomerByUserID = `-- name: GetCustomerByUserID :one
-SELECT id, stripe_customer_id, user_id 
-FROM customers
-WHERE user_id = $1
-LIMIT 1
-`
-
-func (q *Queries) GetCustomerByUserID(ctx context.Context, userID pgtype.UUID) (Customer, error) {
-	row := q.db.QueryRow(ctx, getCustomerByUserID, userID)
-	var i Customer
-	err := row.Scan(&i.ID, &i.StripeCustomerID, &i.UserID)
 	return i, err
 }
 
@@ -259,7 +126,7 @@ func (q *Queries) GetOTP(ctx context.Context, id pgtype.UUID) (Otp, error) {
 }
 
 const getUser = `-- name: GetUser :one
-SELECT id, member, created_at, email FROM users
+SELECT id, tier, created_at, email, stripe_customer_id, stripe_subscription_id FROM users
 WHERE id = $1 LIMIT 1
 `
 
@@ -268,15 +135,17 @@ func (q *Queries) GetUser(ctx context.Context, id pgtype.UUID) (User, error) {
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.Member,
+		&i.Tier,
 		&i.CreatedAt,
 		&i.Email,
+		&i.StripeCustomerID,
+		&i.StripeSubscriptionID,
 	)
 	return i, err
 }
 
 const getUserByEmail = `-- name: GetUserByEmail :one
-SELECT id, member, created_at, email FROM users
+SELECT id, tier, created_at, email, stripe_customer_id, stripe_subscription_id FROM users
 WHERE email = $1 LIMIT 1
 `
 
@@ -285,15 +154,36 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 	var i User
 	err := row.Scan(
 		&i.ID,
-		&i.Member,
+		&i.Tier,
 		&i.CreatedAt,
 		&i.Email,
+		&i.StripeCustomerID,
+		&i.StripeSubscriptionID,
+	)
+	return i, err
+}
+
+const getUserByStripeCustomerID = `-- name: GetUserByStripeCustomerID :one
+SELECT id, tier, created_at, email, stripe_customer_id, stripe_subscription_id FROM users
+WHERE stripe_customer_id = $1 LIMIT 1
+`
+
+func (q *Queries) GetUserByStripeCustomerID(ctx context.Context, stripeCustomerID pgtype.Text) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByStripeCustomerID, stripeCustomerID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Tier,
+		&i.CreatedAt,
+		&i.Email,
+		&i.StripeCustomerID,
+		&i.StripeSubscriptionID,
 	)
 	return i, err
 }
 
 const getUsers = `-- name: GetUsers :many
-SELECT id, member, created_at, email FROM users
+SELECT id, tier, created_at, email, stripe_customer_id, stripe_subscription_id FROM users
 WHERE id = ANY($1::text[])
 `
 
@@ -308,9 +198,11 @@ func (q *Queries) GetUsers(ctx context.Context, dollar_1 []string) ([]User, erro
 		var i User
 		if err := rows.Scan(
 			&i.ID,
-			&i.Member,
+			&i.Tier,
 			&i.CreatedAt,
 			&i.Email,
+			&i.StripeCustomerID,
+			&i.StripeSubscriptionID,
 		); err != nil {
 			return nil, err
 		}
@@ -362,4 +254,39 @@ func (q *Queries) ScanReports(ctx context.Context, arg ScanReportsParams) ([]int
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateUserStripeCustomerID = `-- name: UpdateUserStripeCustomerID :exec
+UPDATE users
+SET stripe_customer_id = $1
+WHERE id = $2
+`
+
+type UpdateUserStripeCustomerIDParams struct {
+	StripeCustomerID pgtype.Text
+	ID               pgtype.UUID
+}
+
+func (q *Queries) UpdateUserStripeCustomerID(ctx context.Context, arg UpdateUserStripeCustomerIDParams) error {
+	_, err := q.db.Exec(ctx, updateUserStripeCustomerID, arg.StripeCustomerID, arg.ID)
+	return err
+}
+
+const updateUserSubAndTier = `-- name: UpdateUserSubAndTier :exec
+UPDATE users
+SET 
+stripe_subscription_id = $1,
+tier = $2
+WHERE id = $3
+`
+
+type UpdateUserSubAndTierParams struct {
+	StripeSubscriptionID pgtype.Text
+	Tier                 Tier
+	ID                   pgtype.UUID
+}
+
+func (q *Queries) UpdateUserSubAndTier(ctx context.Context, arg UpdateUserSubAndTierParams) error {
+	_, err := q.db.Exec(ctx, updateUserSubAndTier, arg.StripeSubscriptionID, arg.Tier, arg.ID)
+	return err
 }

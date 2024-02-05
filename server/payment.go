@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"io"
 	"log"
@@ -11,23 +10,19 @@ import (
 
 	"github.com/AmirSolt/town-watch/models"
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/stripe/stripe-go/v76"
 	"github.com/stripe/stripe-go/v76/checkout/session"
 	"github.com/stripe/stripe-go/v76/customer"
+	"github.com/stripe/stripe-go/v76/paymentmethod"
 	"github.com/stripe/stripe-go/v76/subscription"
 	"github.com/stripe/stripe-go/v76/webhook"
 	"github.com/stripe/stripe-go/v76/webhookendpoint"
 )
 
-type TierID string
-
-const (
-	MonthlyTierID TierID = "monthly"
-	YearlyTierID  TierID = "yearly"
-)
-
 type TierConfig struct {
-	tierID   TierID
+	tier     models.Tier
+	name     string
 	interval string
 	amount   int64
 }
@@ -40,11 +35,13 @@ func (server *Server) loadPayment() {
 	// webhook setup
 	params := &stripe.WebhookEndpointParams{
 		EnabledEvents: []*string{
-			stripe.String("customer.subscription.created"),
-			stripe.String("customer.subscription.deleted"),
-			// stripe.String("customer.subscription.updated"),
+			stripe.String("customer.subscription.updated"),
+			// stripe.String("customer.subscription.created"),
+			// stripe.String("customer.subscription.deleted"),
 			// stripe.String("customer.subscription.resumed"),
 			// stripe.String("customer.subscription.paused"),
+			// stripe.String("payment_method.attached"),
+			// stripe.String("payment_method.detached"),
 		},
 		URL: stripe.String(fmt.Sprintf("%s/payment/webhook/events", server.Env.HOME_URL)),
 	}
@@ -54,14 +51,22 @@ func (server *Server) loadPayment() {
 	}
 
 	// TierConfig
-	m := make(map[TierID]TierConfig)
-	m[MonthlyTierID] = TierConfig{
-		tierID:   MonthlyTierID,
+	m := make(map[models.Tier]TierConfig)
+	m[models.TierT0] = TierConfig{
+		tier:     models.TierT0,
+		name:     "Free",
+		interval: "never",
+		amount:   0,
+	}
+	m[models.TierT1] = TierConfig{
+		tier:     models.TierT1,
+		name:     "Monthly",
 		interval: "month",
 		amount:   1000,
 	}
-	m[YearlyTierID] = TierConfig{
-		tierID:   YearlyTierID,
+	m[models.TierT2] = TierConfig{
+		tier:     models.TierT2,
+		name:     "Yearly",
 		interval: "year",
 		amount:   10000,
 	}
@@ -70,71 +75,78 @@ func (server *Server) loadPayment() {
 
 // ==================================================
 
-func (server *Server) CreateCheckout(user *models.User, tierID TierID) (*stripe.CheckoutSession, error) {
-
-	tierConfig, ok := server.TierConfigs[tierID]
-	if !ok {
-		return nil, fmt.Errorf("checkout session id not found")
+func (server *Server) GetUserPaymentMethods(user *models.User) *customer.PaymentMethodIter {
+	params := &stripe.CustomerListPaymentMethodsParams{
+		Customer: stripe.String(user.StripeCustomerID.String),
 	}
-
-	return server.createCheckoutSession(user, tierConfig)
+	params.Limit = stripe.Int64(5)
+	return customer.ListPaymentMethods(params)
 }
-
-func (server *Server) CancelSubscription(stripeSubscriptionID string) error {
-
-	params := &stripe.SubscriptionParams{CancelAtPeriodEnd: stripe.Bool(true)}
-	_, err := subscription.Update(string(stripeSubscriptionID), params)
+func (server *Server) DetachPaymentMethod(paymentMethodID string) error {
+	_, err := paymentmethod.Detach(paymentMethodID, &stripe.PaymentMethodDetachParams{})
 	if err != nil {
 		return fmt.Errorf("canceling stripe subscription: %w", err)
 	}
-
 	return nil
 }
 
-func (server *Server) ChangeSubscription(tierID TierID) error {
-	// downgrade = happens at the end of period
-
-	// upgrade = happens now + prorate/discount
-
-	return nil
-}
-
-// ==================================================
-
-func (server *Server) createCheckoutSession(user *models.User, checkoutConfig TierConfig) (*stripe.CheckoutSession, error) {
-
-	customer, err := server.DB.queries.GetCustomerByUserID(context.Background(), user.ID)
-	if err != nil && err != sql.ErrNoRows {
-		return nil, fmt.Errorf("error customer find by userID: %w", err)
+func (server *Server) ChangeAutoPay(user *models.User, disable bool) error {
+	params := &stripe.SubscriptionParams{CancelAtPeriodEnd: stripe.Bool(disable)}
+	_, err := subscription.Update(user.StripeSubscriptionID.String, params)
+	if err != nil {
+		return fmt.Errorf("canceling stripe subscription: %w", err)
 	}
+	return nil
+}
 
-	var stripeCustomerID *string
-	if customer.StripeCustomerID == "" {
-		stripeCustomerID = nil
-	} else {
-		stripeCustomerID = &customer.StripeCustomerID
+func (server *Server) CreateSubscriptionTier(user *models.User, tierConfig TierConfig) (*stripe.CheckoutSession, error) {
+	return server.createCheckoutSession(user, tierConfig)
+}
+func (server *Server) ChangeSubscriptionTier(user *models.User, tierConfig TierConfig) (*stripe.CheckoutSession, error) {
+	err := server.CancelSubscription(user)
+	if err != nil {
+		return nil, fmt.Errorf("%w", err)
+	}
+	return server.createCheckoutSession(user, tierConfig)
+}
+func (server *Server) CancelSubscription(user *models.User) error {
+	_, errSub := subscription.Cancel(user.StripeSubscriptionID.String, &stripe.SubscriptionCancelParams{})
+	if errSub != nil {
+		return fmt.Errorf("canceling stripe subscription: %w", errSub)
+	}
+	return nil
+}
+
+func (server *Server) createCheckoutSession(user *models.User, tierConfig TierConfig) (*stripe.CheckoutSession, error) {
+
+	var customerID *string = nil
+	if user.StripeCustomerID.Valid {
+		customerID = &user.StripeCustomerID.String
 	}
 
 	params := &stripe.CheckoutSessionParams{
-		Customer:      stripeCustomerID,
-		Mode:          stripe.String("subscription"),
+		Customer:      customerID,
+		Mode:          stripe.String(string(stripe.CheckoutSessionModeSubscription)),
 		CustomerEmail: stripe.String(user.Email),
 		ReturnURL:     stripe.String(server.Env.HOME_URL),
 		SuccessURL:    stripe.String(fmt.Sprintf("%s/user/wallet", server.Env.HOME_URL)),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
 				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
-					Currency:    stripe.String("USD"),
-					ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{},
+					Currency: stripe.String(string(stripe.CurrencyUSD)),
+					ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
+						Name: stripe.String("Subscription"),
+					},
 					Recurring: &stripe.CheckoutSessionLineItemPriceDataRecurringParams{
-						Interval:      stripe.String(checkoutConfig.interval),
+						Interval:      stripe.String(tierConfig.interval),
 						IntervalCount: stripe.Int64(1),
 					},
-					UnitAmount: stripe.Int64(checkoutConfig.amount),
+					UnitAmount: stripe.Int64(getNewUnitAmount(server.TierConfigs[user.Tier], tierConfig)),
 				},
 				Quantity: stripe.Int64(1),
 			},
 		},
+		Metadata: map[string]string{"tier": string(tierConfig.tier)},
 	}
 
 	result, err := session.New(params)
@@ -142,10 +154,10 @@ func (server *Server) createCheckoutSession(user *models.User, checkoutConfig Ti
 		return nil, fmt.Errorf("checkout session creation failed: %w", err)
 	}
 
-	if stripeCustomerID == nil {
-		_, err := server.DB.queries.CreateCustomer(context.Background(), models.CreateCustomerParams{
-			StripeCustomerID: result.Customer.ID,
-			UserID:           user.ID,
+	if customerID == nil {
+		err := server.DB.queries.UpdateUserStripeCustomerID(context.Background(), models.UpdateUserStripeCustomerIDParams{
+			StripeCustomerID: pgtype.Text{String: result.Customer.ID},
+			ID:               user.ID,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error user customerID could not be updated: %w", err)
@@ -154,6 +166,16 @@ func (server *Server) createCheckoutSession(user *models.User, checkoutConfig Ti
 
 	return result, nil
 }
+
+func getNewUnitAmount(currentTierConfig TierConfig, targetTierConfig TierConfig) int64 {
+	newCost := targetTierConfig.amount - currentTierConfig.amount
+	if newCost < 0 {
+		newCost = 0
+	}
+	return newCost
+}
+
+// ==================================================
 
 func (server *Server) HandleStripeWebhook(ginContext *gin.Context) {
 	req := ginContext.Request
@@ -192,58 +214,24 @@ func (server *Server) handleStripeEvents(event stripe.Event) error {
 		if err != nil {
 			return fmt.Errorf("converting raw event to customer object: %w", err)
 		}
-		newSubsc, err := subscription.Get(event.Data.Object["subscription"].(string), nil)
+		subsc, err := subscription.Get(event.Data.Object["subscription"].(string), nil)
 		if err != nil {
 			return fmt.Errorf("converting raw event to subscription object: %w", err)
 		}
+		tier := event.Data.Object["metadata"].(string)
 
-		// find customer
-		customer, err := server.DB.queries.GetCustomerByStripeID(context.Background(), cust.ID)
-		if err != nil {
-			return fmt.Errorf("could not find customer by stripe id: %w", err)
+		user, errUser := server.DB.queries.GetUserByStripeCustomerID(context.Background(), pgtype.Text{String: cust.ID})
+		if errUser != nil {
+			return fmt.Errorf("could not find user by stripe id: %w", errUser)
 		}
 
-		// deactivate subsc in DB
-		deSubscription, err := server.DB.queries.DeactivateSubscriptionByCustomerID(context.Background(), customer.ID)
-		if err != nil && err != sql.ErrNoRows {
-			return fmt.Errorf("deactivating customer active subscription: %w", err)
-		}
-		if err != sql.ErrNoRows {
-			// cancel stripe subsc
-			_, errSub := subscription.Cancel(deSubscription.StripeSubscriptionID, &stripe.SubscriptionCancelParams{
-				CancellationDetails: &stripe.SubscriptionCancelCancellationDetailsParams{
-					Feedback: stripe.String("switched_service"),
-				},
-				Prorate: stripe.Bool(true),
-			})
-			if errSub != nil {
-				return fmt.Errorf("canceling stripe subscription: %w", errSub)
-			}
-		}
-
-		// create this subscription
-		_, errSubsc := server.DB.queries.CreateSubscription(context.Background(), models.CreateSubscriptionParams{
-			StripeSubscriptionID: newSubsc.ID,
-			TierID:               event.Data.Object["ClientReferenceID"].(string),
-			IsActive:             true,
-			CustomerID:           customer.ID,
+		errUpd := server.DB.queries.UpdateUserSubAndTier(context.Background(), models.UpdateUserSubAndTierParams{
+			StripeSubscriptionID: pgtype.Text{String: subsc.ID},
+			Tier:                 models.Tier(tier),
+			ID:                   user.ID,
 		})
-		if errSubsc != nil {
-			return fmt.Errorf("creating new subscription: %w", errSubsc)
-		}
-
-		return nil
-
-	}
-	if event.Type == "customer.subscription.deleted" {
-		subs, err := subscription.Get(event.Data.Object["subscription"].(string), nil)
-		if err != nil {
-			return fmt.Errorf("converting raw event to subscription object: %w", err)
-		}
-
-		errDe := server.DB.queries.DeactivateSubscriptionByStripeID(context.Background(), subs.ID)
-		if errDe != nil {
-			return fmt.Errorf("deactivating subscription by id: %w", err)
+		if errUpd != nil {
+			return fmt.Errorf("could not update user UpdateUserSubAndTier: %w", errUpd)
 		}
 
 		return nil
