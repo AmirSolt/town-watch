@@ -35,9 +35,9 @@ func (server *Server) loadPayment() {
 	// webhook setup
 	params := &stripe.WebhookEndpointParams{
 		EnabledEvents: []*string{
-			stripe.String("customer.subscription.updated"),
-			// stripe.String("customer.subscription.created"),
-			// stripe.String("customer.subscription.deleted"),
+			// stripe.String("customer.subscription.updated"),
+			stripe.String("customer.subscription.created"),
+			stripe.String("customer.subscription.deleted"),
 			// stripe.String("customer.subscription.resumed"),
 			// stripe.String("customer.subscription.paused"),
 			// stripe.String("payment_method.attached"),
@@ -135,7 +135,7 @@ func (server *Server) createCheckoutSession(user *models.User, tierConfig TierCo
 				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
 					Currency: stripe.String(string(stripe.CurrencyUSD)),
 					ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
-						Name: stripe.String("Subscription"),
+						Name: stripe.String(tierConfig.name),
 					},
 					Recurring: &stripe.CheckoutSessionLineItemPriceDataRecurringParams{
 						Interval:      stripe.String(tierConfig.interval),
@@ -234,6 +234,34 @@ func (server *Server) handleStripeEvents(event stripe.Event) error {
 			return fmt.Errorf("could not update user UpdateUserSubAndTier: %w", errUpd)
 		}
 
+		return nil
+	}
+
+	if event.Type == "customer.subscription.deleted" {
+		cust, err := customer.Get(event.Data.Object["customer"].(string), nil)
+		if err != nil {
+			return fmt.Errorf("converting raw event to customer object: %w", err)
+		}
+		subsc, err := subscription.Get(event.Data.Object["subscription"].(string), nil)
+		if err != nil {
+			return fmt.Errorf("converting raw event to subscription object: %w", err)
+		}
+
+		user, errUser := server.DB.queries.GetUserByStripeCustomerID(context.Background(), pgtype.Text{String: cust.ID})
+		if errUser != nil {
+			return fmt.Errorf("could not find user by stripe id: %w", errUser)
+		}
+
+		if user.StripeSubscriptionID.String == subsc.ID {
+			errUpd := server.DB.queries.UpdateUserSubAndTier(context.Background(), models.UpdateUserSubAndTierParams{
+				StripeSubscriptionID: pgtype.Text{String: "", Valid: false},
+				Tier:                 models.TierT0,
+				ID:                   user.ID,
+			})
+			if errUpd != nil {
+				return fmt.Errorf("could not update user UpdateUserSubAndTier: %w", errUpd)
+			}
+		}
 		return nil
 	}
 
