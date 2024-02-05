@@ -19,28 +19,32 @@ import (
 	"github.com/stripe/stripe-go/v76/webhookendpoint"
 )
 
-type SubscriptionID string
+type TierID string
 
 const (
-	MonthlySubscriptionID SubscriptionID = "monthly"
-	YearlySubscriptionID  SubscriptionID = "yearly"
+	MonthlyTierID TierID = "monthly"
+	YearlyTierID  TierID = "yearly"
 )
 
-type CheckoutConfig struct {
+type TierConfig struct {
+	tierID   TierID
 	interval string
 	amount   int64
 }
 
-func (server *Server) loadStripe() {
+func (server *Server) loadPayment() {
+
+	// stripe key
 	stripe.Key = server.Env.STRIPE_PRIVATE_KEY
 
+	// webhook setup
 	params := &stripe.WebhookEndpointParams{
 		EnabledEvents: []*string{
 			stripe.String("customer.subscription.created"),
 			stripe.String("customer.subscription.deleted"),
-			stripe.String("customer.subscription.paused"),
-			stripe.String("customer.subscription.resumed"),
-			stripe.String("customer.subscription.updated"),
+			// stripe.String("customer.subscription.updated"),
+			// stripe.String("customer.subscription.resumed"),
+			// stripe.String("customer.subscription.paused"),
 		},
 		URL: stripe.String(fmt.Sprintf("%s/payment/webhook/events", server.Env.HOME_URL)),
 	}
@@ -48,30 +52,56 @@ func (server *Server) loadStripe() {
 	if err != nil {
 		log.Fatalln("Error: init stripe webhook events: %w", err)
 	}
+
+	// TierConfig
+	m := make(map[TierID]TierConfig)
+	m[MonthlyTierID] = TierConfig{
+		tierID:   MonthlyTierID,
+		interval: "month",
+		amount:   1000,
+	}
+	m[YearlyTierID] = TierConfig{
+		tierID:   YearlyTierID,
+		interval: "year",
+		amount:   10000,
+	}
+	server.TierConfigs = m
 }
 
-func (server *Server) GetCheckoutUrl(user *models.User, subscriptionID SubscriptionID) (*stripe.CheckoutSession, error) {
+// ==================================================
 
-	var checkoutConfig CheckoutConfig
-	if subscriptionID == MonthlySubscriptionID {
-		checkoutConfig = CheckoutConfig{
-			interval: "month",
-			amount:   1000,
-		}
-	} else if subscriptionID == YearlySubscriptionID {
-		checkoutConfig = CheckoutConfig{
-			interval: "year",
-			amount:   10000,
-		}
-	} else {
+func (server *Server) CreateCheckout(user *models.User, tierID TierID) (*stripe.CheckoutSession, error) {
+
+	tierConfig, ok := server.TierConfigs[tierID]
+	if !ok {
 		return nil, fmt.Errorf("checkout session id not found")
-
 	}
 
-	return server.createCheckoutSession(user, checkoutConfig)
+	return server.createCheckoutSession(user, tierConfig)
 }
 
-func (server *Server) createCheckoutSession(user *models.User, checkoutConfig CheckoutConfig) (*stripe.CheckoutSession, error) {
+func (server *Server) CancelSubscription(stripeSubscriptionID string) error {
+
+	params := &stripe.SubscriptionParams{CancelAtPeriodEnd: stripe.Bool(true)}
+	_, err := subscription.Update(string(stripeSubscriptionID), params)
+	if err != nil {
+		return fmt.Errorf("canceling stripe subscription: %w", err)
+	}
+
+	return nil
+}
+
+func (server *Server) ChangeSubscription(tierID TierID) error {
+	// downgrade = happens at the end of period
+
+	// upgrade = happens now + prorate/discount
+
+	return nil
+}
+
+// ==================================================
+
+func (server *Server) createCheckoutSession(user *models.User, checkoutConfig TierConfig) (*stripe.CheckoutSession, error) {
 
 	customer, err := server.DB.queries.GetCustomerByUserID(context.Background(), user.ID)
 	if err != nil && err != sql.ErrNoRows {
@@ -86,12 +116,11 @@ func (server *Server) createCheckoutSession(user *models.User, checkoutConfig Ch
 	}
 
 	params := &stripe.CheckoutSessionParams{
-		ClientReferenceID: stripe.String(string(user.ID.Bytes[:])),
-		Customer:          stripeCustomerID,
-		Mode:              stripe.String("subscription"),
-		CustomerEmail:     stripe.String(user.Email),
-		ReturnURL:         stripe.String(server.Env.HOME_URL),
-		SuccessURL:        stripe.String(fmt.Sprintf("%s/payment/success", server.Env.HOME_URL)),
+		Customer:      stripeCustomerID,
+		Mode:          stripe.String("subscription"),
+		CustomerEmail: stripe.String(user.Email),
+		ReturnURL:     stripe.String(server.Env.HOME_URL),
+		SuccessURL:    stripe.String(fmt.Sprintf("%s/user/wallet", server.Env.HOME_URL)),
 		LineItems: []*stripe.CheckoutSessionLineItemParams{
 			{
 				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
@@ -124,20 +153,6 @@ func (server *Server) createCheckoutSession(user *models.User, checkoutConfig Ch
 	}
 
 	return result, nil
-}
-
-func (server *Server) CancelSubscription(subscriptionID SubscriptionID, comment string) error {
-	// cancel stripe subsc
-	_, errSub := subscription.Cancel(string(subscriptionID), &stripe.SubscriptionCancelParams{
-		CancellationDetails: &stripe.SubscriptionCancelCancellationDetailsParams{
-			Comment: stripe.String(comment),
-		},
-	})
-	if errSub != nil {
-		return fmt.Errorf("canceling stripe subscription: %w", errSub)
-	}
-
-	return nil
 }
 
 func (server *Server) HandleStripeWebhook(ginContext *gin.Context) {
@@ -199,6 +214,7 @@ func (server *Server) handleStripeEvents(event stripe.Event) error {
 				CancellationDetails: &stripe.SubscriptionCancelCancellationDetailsParams{
 					Feedback: stripe.String("switched_service"),
 				},
+				Prorate: stripe.Bool(true),
 			})
 			if errSub != nil {
 				return fmt.Errorf("canceling stripe subscription: %w", errSub)
@@ -208,7 +224,7 @@ func (server *Server) handleStripeEvents(event stripe.Event) error {
 		// create this subscription
 		_, errSubsc := server.DB.queries.CreateSubscription(context.Background(), models.CreateSubscriptionParams{
 			StripeSubscriptionID: newSubsc.ID,
-			TierID:               "",
+			TierID:               event.Data.Object["ClientReferenceID"].(string),
 			IsActive:             true,
 			CustomerID:           customer.ID,
 		})

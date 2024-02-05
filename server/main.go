@@ -7,10 +7,11 @@ import (
 )
 
 type Server struct {
-	RootDir string
-	Engine  *gin.Engine
-	Env     *Env
-	DB      *DB
+	RootDir     string
+	Engine      *gin.Engine
+	Env         *Env
+	DB          *DB
+	TierConfigs map[TierID]TierConfig
 }
 
 func (server *Server) LoadServer() {
@@ -24,7 +25,7 @@ func (server *Server) LoadServer() {
 
 	server.loadDB()
 
-	server.loadStripe()
+	server.loadPayment()
 }
 
 func (server *Server) KillServer() {

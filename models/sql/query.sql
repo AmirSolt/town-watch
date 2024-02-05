@@ -32,12 +32,6 @@ FROM customers
 WHERE user_id = $1
 LIMIT 1;
 
--- name: CreateCustomer :one
-INSERT INTO customers( 
-    stripe_customer_id,
-    user_id
-) VALUES ($1,$2)
-RETURNING *;
 
 
 
