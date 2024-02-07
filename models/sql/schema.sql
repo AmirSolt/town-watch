@@ -80,7 +80,7 @@ CREATE TABLE scanners (
     id SERIAL PRIMARY KEY,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN NOT NULL DEFAULT true,
-    address TEXT,
+    address TEXT NOT NULL,
     region region NOT NULL,
     radius DOUBLE PRECISION NOT NULL,
     point geometry(Point, 3857) NOT NULL,

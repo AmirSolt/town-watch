@@ -186,7 +186,7 @@ type Scanner struct {
 	ID        int32
 	CreatedAt pgtype.Timestamptz
 	IsActive  bool
-	Address   pgtype.Text
+	Address   string
 	Region    Region
 	Radius    float64
 	Point     interface{}
