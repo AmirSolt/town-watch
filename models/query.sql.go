@@ -107,6 +107,17 @@ func (q *Queries) CreateUser(ctx context.Context, email string) (User, error) {
 	return i, err
 }
 
+const deactivateOTP = `-- name: DeactivateOTP :exec
+UPDATE otps
+SET is_active = FALSE
+WHERE id = $1
+`
+
+func (q *Queries) DeactivateOTP(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deactivateOTP, id)
+	return err
+}
+
 const getLatestOTPByUser = `-- name: GetLatestOTPByUser :one
 SELECT id, created_at, expires_at, is_active, user_id FROM otps
 WHERE user_id = $1

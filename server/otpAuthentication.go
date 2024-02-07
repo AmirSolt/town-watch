@@ -40,14 +40,14 @@ func (server *Server) InitOTP(email string) error {
 		return fmt.Errorf("error OTP creation: %w", err)
 	}
 
-	errEmail := server.SendOTP(&user, &otp)
+	errEmail := server.SendOTPEmail(&user, &otp)
 	if errEmail != nil {
 		return errEmail
 	}
 	return nil
 }
 
-func (server *Server) SendOTP(user *models.User, otp *models.Otp) error {
+func (server *Server) SendOTPEmail(user *models.User, otp *models.Otp) error {
 	content := "content" + string(otp.ID.Bytes[:])
 	errEmail := server.SendEmail(user.Email, "User", "Town Watch", "Email Verification Link", content)
 	if errEmail != nil {
@@ -90,6 +90,8 @@ func (server *Server) ValidateOTP(ginContext *gin.Context, otpId string) error {
 		return fmt.Errorf("error OTP is not active: %w", err)
 	}
 
+	defer server.deactivateOTP(&otp)
+
 	if time.Now().UTC().After(otp.ExpiresAt.Time) {
 		return fmt.Errorf("error OTP is expired: %w", err)
 	}
@@ -99,8 +101,25 @@ func (server *Server) ValidateOTP(ginContext *gin.Context, otpId string) error {
 		return fmt.Errorf("error user not found by OTP: %w", err)
 	}
 
+	lastOTP, err := server.DB.queries.GetLatestOTPByUser(context.Background(), user.ID)
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("error latest otp lookup: %w", err)
+	}
+
+	if lastOTP.ID != otp.ID {
+		return fmt.Errorf("otp does not match latest user otp: %w", err)
+	}
+
 	server.SetJWT(ginContext, &user)
 
+	return nil
+}
+
+func (server *Server) deactivateOTP(otp *models.Otp) error {
+	err := server.DB.queries.DeactivateOTP(context.Background(), otp.ID)
+	if err != nil {
+		return fmt.Errorf("deactivating otp failed: %w", err)
+	}
 	return nil
 }
 

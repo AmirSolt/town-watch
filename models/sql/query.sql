@@ -60,7 +60,10 @@ ORDER BY created_at desc
 LIMIT 1;
 
 
-
+-- name: DeactivateOTP :exec
+UPDATE otps
+SET is_active = FALSE
+WHERE id = $1;
 
 
 
