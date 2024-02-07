@@ -10,7 +10,9 @@ func (routes *Routes) index() {
 
 	routes.server.Engine.GET("/", func(c *gin.Context) {
 
-		c.HTML(http.StatusOK, "index.html", nil)
+		c.HTML(http.StatusOK, "index.tmpl", gin.H{
+			"title": "Page 2 IS HERE",
+		})
 	})
 
 }

@@ -178,6 +178,8 @@ func getNewUnitAmount(currentTierConfig TierConfig, targetTierConfig TierConfig)
 // ==================================================
 
 func (server *Server) HandleStripeWebhook(ginContext *gin.Context) {
+	// ==================================================================
+	// The signature check is pulled directly from Stripe and it's not tested
 	req := ginContext.Request
 	w := ginContext.Writer
 
@@ -198,6 +200,7 @@ func (server *Server) HandleStripeWebhook(ginContext *gin.Context) {
 		w.WriteHeader(http.StatusBadRequest) // Return a 400 error on a bad signature
 		return
 	}
+	// ==================================================================
 
 	if err := server.handleStripeEvents(event); err != nil {
 		fmt.Fprintf(os.Stderr, "Error handling event: %v\n", err)

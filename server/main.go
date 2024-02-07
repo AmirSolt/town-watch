@@ -17,16 +17,17 @@ type Server struct {
 
 func (server *Server) LoadServer() {
 
+	gin.SetMode(gin.DebugMode)
 	// gin.DisableConsoleColor()
 	server.Engine = gin.Default()
 
-	server.Engine.LoadHTMLGlob(filepath.Join(server.RootDir, "public/*"))
+	server.Engine.LoadHTMLGlob(filepath.Join(server.RootDir, "templates/*.tmpl"))
 
 	server.loadEnv()
 
 	server.loadDB()
 
-	server.loadPayment()
+	// server.loadPayment()
 }
 
 func (server *Server) KillServer() {

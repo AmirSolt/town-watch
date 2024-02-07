@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"testing"
 	"time"
-
-	"github.com/AmirSolt/town-watch/server"
 )
 
 func TestFetchReports(t *testing.T) {
@@ -23,10 +21,7 @@ func TestFetchReports(t *testing.T) {
 		{inputFromDate: time.Now().UTC().AddDate(0, 0, 2), inputToDate: time.Now().UTC().AddDate(0, 0, 0), want: false, ok: true},
 	}
 
-	server := server.Server{
-		RootDir: "../",
-	}
-	server.LoadServer()
+	server := loadTestServer()
 
 	for i, tc := range tests {
 
@@ -51,10 +46,7 @@ func TestConvertArcgisResponseToReportsParams(t *testing.T) {
 		{inputFromDate: time.Now().UTC().AddDate(0, 0, -2), inputToDate: time.Now().UTC().AddDate(0, 0, -1), want: true, ok: true},
 	}
 
-	server := server.Server{
-		RootDir: "../",
-	}
-	server.LoadServer()
+	server := loadTestServer()
 
 	for i, tc := range tests {
 		arcReports, err := server.FetchArcgisReports(tc.inputFromDate, tc.inputToDate)
@@ -80,10 +72,7 @@ func TestCreateReports(t *testing.T) {
 		{inputFromDate: time.Now().UTC().AddDate(0, 0, -2), inputToDate: time.Now().UTC().AddDate(0, 0, -1), ok: true},
 	}
 
-	server := server.Server{
-		RootDir: "../",
-	}
-	server.LoadServer()
+	server := loadTestServer()
 
 	for i, tc := range tests {
 		arcReports, err := server.FetchArcgisReports(tc.inputFromDate, tc.inputToDate)
