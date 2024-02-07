@@ -53,6 +53,11 @@ RETURNING *;
 SELECT * FROM otps
 WHERE id = $1 LIMIT 1;
 
+-- name: GetLatestOTPByUser :one
+SELECT * FROM otps
+WHERE user_id = $1
+ORDER BY created_at desc
+LIMIT 1;
 
 
 

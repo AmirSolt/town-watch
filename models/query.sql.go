@@ -107,6 +107,26 @@ func (q *Queries) CreateUser(ctx context.Context, email string) (User, error) {
 	return i, err
 }
 
+const getLatestOTPByUser = `-- name: GetLatestOTPByUser :one
+SELECT id, created_at, expires_at, is_active, user_id FROM otps
+WHERE user_id = $1
+ORDER BY created_at desc
+LIMIT 1
+`
+
+func (q *Queries) GetLatestOTPByUser(ctx context.Context, userID pgtype.UUID) (Otp, error) {
+	row := q.db.QueryRow(ctx, getLatestOTPByUser, userID)
+	var i Otp
+	err := row.Scan(
+		&i.ID,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+		&i.IsActive,
+		&i.UserID,
+	)
+	return i, err
+}
+
 const getOTP = `-- name: GetOTP :one
 SELECT id, created_at, expires_at, is_active, user_id FROM otps
 WHERE id = $1 LIMIT 1

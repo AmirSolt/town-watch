@@ -11,7 +11,8 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const otpExpirationDurationSeconds = 60 * 5 // 5 minutes
+const otpExpirationDurationSeconds = 60 * 5  // 5 minutes
+const otpRetryExpirationDurationSeconds = 10 // 10 sec
 
 func (server *Server) InitOTP(email string) error {
 
@@ -39,10 +40,40 @@ func (server *Server) InitOTP(email string) error {
 		return fmt.Errorf("error OTP creation: %w", err)
 	}
 
+	errEmail := server.SendOTP(&user, &otp)
+	if errEmail != nil {
+		return errEmail
+	}
+	return nil
+}
+
+func (server *Server) SendOTP(user *models.User, otp *models.Otp) error {
 	content := "content" + string(otp.ID.Bytes[:])
 	errEmail := server.SendEmail(user.Email, "User", "Town Watch", "Email Verification Link", content)
 	if errEmail != nil {
-		return fmt.Errorf("error OTP email could not be sent: %w", err)
+		return fmt.Errorf("error OTP email could not be sent: %w", errEmail)
+	}
+	return nil
+}
+
+func (server *Server) ResendOTP(email string) error {
+	user, err := server.DB.queries.GetUserByEmail(context.Background(), email)
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("error user email lookup: %w", err)
+	}
+
+	lastOTP, err := server.DB.queries.GetLatestOTPByUser(context.Background(), user.ID)
+	if err != nil && err != sql.ErrNoRows {
+		return fmt.Errorf("error latest otp lookup: %w", err)
+	}
+
+	if time.Now().Add(-time.Second * otpRetryExpirationDurationSeconds).UTC().Before(lastOTP.CreatedAt.Time) {
+		return fmt.Errorf("you have to wait %v after sending OTP: %w", otpRetryExpirationDurationSeconds, err)
+	}
+
+	errOTP := server.InitOTP(email)
+	if errOTP != nil {
+		return fmt.Errorf("error resend InitOTP: %w", errOTP)
 	}
 
 	return nil
