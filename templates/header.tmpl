@@ -4,9 +4,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.title}}</title>
+    <title>{{.data.Title}}</title>
 </head>
 <body>
-    <h1>BASELINE</h1>
-    <div id="content">
+
+    
+    <header>
+        <nav>
+
+            <h1>
+                <a href="/">
+                    Logo
+                </a>
+            </h1>
+
+            <div>
+                <a href="/pricing">
+                    Pricing
+                </a>
+
+                {{if .data.User}}
+                    <a href="/user">
+                        User
+                    </a>
+                {{else }}
+                    <a href="/join">
+                        Login/Register
+                    </a>
+                {{end}}
+            </div>
+
+        </nav>
+    </header>
+
+
+    <br>
+    <br>
+    <br>
+    <br>
+    
 {{end}}
