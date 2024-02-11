@@ -11,7 +11,7 @@ const scanReportsLimit = 50
 
 func (server *Server) Scan(scanParams models.ScanReportsParams) (*[]models.Report, error) {
 	// query db
-	reports, err := server.DB.queries.ScanReports(context.Background(), scanParams)
+	reports, err := server.DB.Queries.ScanReports(context.Background(), scanParams)
 	if err != nil {
 		return nil, fmt.Errorf("error ScanReports: %w", err)
 	}

@@ -1,6 +1,9 @@
 package routes
 
 import (
+	"context"
+	"database/sql"
+	"fmt"
 	"net/http"
 
 	"github.com/AmirSolt/town-watch/models"
@@ -14,28 +17,28 @@ type indexLoad struct {
 
 func (routes *Routes) index() {
 
-	routes.server.Engine.GET("/", func(c *gin.Context) {
+	routes.server.Engine.GET("/",
+		routes.server.ValidateUser,
+		func(c *gin.Context) {
 
-		c.HTML(http.StatusOK, "index.tmpl", gin.H{
-			"data": indexLoad{
-				pageLoad: pageLoad{
-					Title: "Home",
+			tempUser, _ := c.Get("user")
+			user := (tempUser).(*models.User)
+
+			scanners, err := routes.server.DB.Queries.GetScanners(context.Background(), user.ID)
+			if err != nil && err != sql.ErrNoRows {
+				fmt.Errorf("scanner lookup failed: %w", err)
+				return
+			}
+
+			c.HTML(http.StatusOK, "index.tmpl", gin.H{
+				"data": indexLoad{
+					pageLoad: pageLoad{
+						Title: "Home",
+						User:  user,
+					},
+					Scanners: &scanners,
 				},
-				Scanners: &[]models.Scanner{
-					{
-						ID:      123,
-						Address: "my address",
-					},
-					{
-						ID:      125,
-						Address: "my addqwd12s",
-					},
-					{
-						ID:      122,
-						Address: "my adasdwqdess",
-					}},
-			},
-		})
+			})
 
-	})
+		})
 }

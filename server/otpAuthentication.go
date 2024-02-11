@@ -19,19 +19,19 @@ func (server *Server) InitOTP(email string) error {
 	var user models.User
 	var err error
 
-	user, err = server.DB.queries.GetUserByEmail(context.Background(), email)
+	user, err = server.DB.Queries.GetUserByEmail(context.Background(), email)
 	if err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("error user email lookup: %w", err)
 	}
 
 	if err == sql.ErrNoRows {
-		user, err = server.DB.queries.CreateUser(context.Background(), email)
+		user, err = server.DB.Queries.CreateUser(context.Background(), email)
 		if err != nil {
 			return fmt.Errorf("error user creation: %w", err)
 		}
 	}
 
-	otp, err := server.DB.queries.CreateOTP(context.Background(), models.CreateOTPParams{
+	otp, err := server.DB.Queries.CreateOTP(context.Background(), models.CreateOTPParams{
 		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(time.Second * otpExpirationDurationSeconds).UTC(), Valid: true},
 		IsActive:  true,
 		UserID:    user.ID,
@@ -57,12 +57,12 @@ func (server *Server) SendOTPEmail(user *models.User, otp *models.Otp) error {
 }
 
 func (server *Server) ResendOTP(email string) error {
-	user, err := server.DB.queries.GetUserByEmail(context.Background(), email)
+	user, err := server.DB.Queries.GetUserByEmail(context.Background(), email)
 	if err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("error user email lookup: %w", err)
 	}
 
-	lastOTP, err := server.DB.queries.GetLatestOTPByUser(context.Background(), user.ID)
+	lastOTP, err := server.DB.Queries.GetLatestOTPByUser(context.Background(), user.ID)
 	if err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("error latest otp lookup: %w", err)
 	}
@@ -81,7 +81,7 @@ func (server *Server) ResendOTP(email string) error {
 
 func (server *Server) ValidateOTP(ginContext *gin.Context, otpId string) error {
 
-	otp, err := server.DB.queries.GetOTP(context.Background(), pgtype.UUID{Bytes: stringToByte16(otpId), Valid: true})
+	otp, err := server.DB.Queries.GetOTP(context.Background(), pgtype.UUID{Bytes: stringToByte16(otpId), Valid: true})
 	if err != nil {
 		return fmt.Errorf("error OTP lookup: %w", err)
 	}
@@ -96,12 +96,12 @@ func (server *Server) ValidateOTP(ginContext *gin.Context, otpId string) error {
 		return fmt.Errorf("error OTP is expired: %w", err)
 	}
 
-	user, err := server.DB.queries.GetUser(context.Background(), otp.UserID)
+	user, err := server.DB.Queries.GetUser(context.Background(), otp.UserID)
 	if err != nil {
 		return fmt.Errorf("error user not found by OTP: %w", err)
 	}
 
-	lastOTP, err := server.DB.queries.GetLatestOTPByUser(context.Background(), user.ID)
+	lastOTP, err := server.DB.Queries.GetLatestOTPByUser(context.Background(), user.ID)
 	if err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("error latest otp lookup: %w", err)
 	}
@@ -116,7 +116,7 @@ func (server *Server) ValidateOTP(ginContext *gin.Context, otpId string) error {
 }
 
 func (server *Server) deactivateOTP(otp *models.Otp) error {
-	err := server.DB.queries.DeactivateOTP(context.Background(), otp.ID)
+	err := server.DB.Queries.DeactivateOTP(context.Background(), otp.ID)
 	if err != nil {
 		return fmt.Errorf("deactivating otp failed: %w", err)
 	}
@@ -134,7 +134,7 @@ func (server *Server) deactivateOTP(otp *models.Otp) error {
 // 		return nil, err
 // 	}
 
-// 	user, err := server.DB.queries.CreateUser(context.Background(), models.CreateUserParams{Email: email, HashedPassword: string(hashedPassword)})
+// 	user, err := server.DB.Queries.CreateUser(context.Background(), models.CreateUserParams{Email: email, HashedPassword: string(hashedPassword)})
 // 	if err != nil {
 // 		return nil, fmt.Errorf("signup error: %w", err)
 // 	}
@@ -149,7 +149,7 @@ func (server *Server) deactivateOTP(otp *models.Otp) error {
 
 // func (server *Server) Login(ginContext *gin.Context, email string, password string) (*models.User, error) {
 
-// 	user, err := server.DB.queries.GetUserByEmail(context.Background(), email)
+// 	user, err := server.DB.Queries.GetUserByEmail(context.Background(), email)
 // 	if err != nil {
 // 		return nil, fmt.Errorf("login error: Invalid email/password")
 // 	}

@@ -13,7 +13,7 @@ const scannerNotifScanReportsLimit = 20
 const scannerNotifFromSeconds = 60 * 60 // 60 minutes
 
 func (server *Server) GetNotifs(currentTime time.Time) (*[]models.Notif, error) {
-	notifs, err := server.DB.queries.CreateScannerNotifs(context.Background(), models.CreateScannerNotifsParams{
+	notifs, err := server.DB.Queries.CreateScannerNotifs(context.Background(), models.CreateScannerNotifsParams{
 		FromDate:         pgtype.Timestamptz{Time: currentTime.Add(-time.Second * scannerNotifFromSeconds)},
 		ToDate:           pgtype.Timestamptz{Time: currentTime},
 		ScanReportsLimit: scannerNotifScanReportsLimit,
@@ -42,7 +42,7 @@ func (server *Server) SendNotifs(notifs *[]models.Notif) error {
 		userIds = append(userIds, string(notif.UserID.Bytes[:]))
 	}
 
-	users, err := server.DB.queries.GetUsers(context.Background(), userIds)
+	users, err := server.DB.Queries.GetUsers(context.Background(), userIds)
 	if err != nil {
 		return fmt.Errorf("failed to fetch users from GetUsers(): %w", err)
 	}

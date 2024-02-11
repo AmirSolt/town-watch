@@ -163,7 +163,7 @@ func (server *Server) createCheckoutSession(user *models.User, tierConfig TierCo
 	}
 
 	if customerID == nil {
-		err := server.DB.queries.UpdateUserStripeCustomerID(context.Background(), models.UpdateUserStripeCustomerIDParams{
+		err := server.DB.Queries.UpdateUserStripeCustomerID(context.Background(), models.UpdateUserStripeCustomerIDParams{
 			StripeCustomerID: pgtype.Text{String: result.Customer.ID},
 			ID:               user.ID,
 		})
@@ -231,12 +231,12 @@ func (server *Server) handleStripeEvents(event stripe.Event) error {
 		}
 		tier := event.Data.Object["metadata"].(string)
 
-		user, errUser := server.DB.queries.GetUserByStripeCustomerID(context.Background(), pgtype.Text{String: cust.ID})
+		user, errUser := server.DB.Queries.GetUserByStripeCustomerID(context.Background(), pgtype.Text{String: cust.ID})
 		if errUser != nil {
 			return fmt.Errorf("could not find user by stripe id: %w", errUser)
 		}
 
-		errUpd := server.DB.queries.UpdateUserSubAndTier(context.Background(), models.UpdateUserSubAndTierParams{
+		errUpd := server.DB.Queries.UpdateUserSubAndTier(context.Background(), models.UpdateUserSubAndTierParams{
 			StripeSubscriptionID: pgtype.Text{String: subsc.ID},
 			Tier:                 models.Tier(tier),
 			ID:                   user.ID,
@@ -258,13 +258,13 @@ func (server *Server) handleStripeEvents(event stripe.Event) error {
 			return fmt.Errorf("converting raw event to subscription object: %w", err)
 		}
 
-		user, errUser := server.DB.queries.GetUserByStripeCustomerID(context.Background(), pgtype.Text{String: cust.ID})
+		user, errUser := server.DB.Queries.GetUserByStripeCustomerID(context.Background(), pgtype.Text{String: cust.ID})
 		if errUser != nil {
 			return fmt.Errorf("could not find user by stripe id: %w", errUser)
 		}
 
 		if user.StripeSubscriptionID.String == subsc.ID {
-			errUpd := server.DB.queries.UpdateUserSubAndTier(context.Background(), models.UpdateUserSubAndTierParams{
+			errUpd := server.DB.Queries.UpdateUserSubAndTier(context.Background(), models.UpdateUserSubAndTierParams{
 				StripeSubscriptionID: pgtype.Text{String: "", Valid: false},
 				Tier:                 models.TierT0,
 				ID:                   user.ID,

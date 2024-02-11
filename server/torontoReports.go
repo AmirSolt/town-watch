@@ -93,7 +93,7 @@ func (server *Server) ConvertArcgisResponseToReportsParams(arcgisResponse *Arcgi
 }
 
 func (server *Server) CreateReports(reportsParams *[]models.CreateReportsParams) {
-	count, err := server.DB.queries.CreateReports(context.Background(), *reportsParams)
+	count, err := server.DB.Queries.CreateReports(context.Background(), *reportsParams)
 	if err != nil {
 		log.Fatalln("ERROR: bulk insert reports failed:", err, " || count:", count)
 	}

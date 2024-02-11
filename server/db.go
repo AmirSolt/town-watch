@@ -9,7 +9,7 @@ import (
 )
 
 type DB struct {
-	queries *models.Queries
+	Queries *models.Queries
 	conn    *pgx.Conn
 }
 
@@ -22,7 +22,7 @@ func (server *Server) loadDB() {
 	queries := models.New(conn)
 	server.DB = &DB{
 		conn:    conn,
-		queries: queries,
+		Queries: queries,
 	}
 }
 

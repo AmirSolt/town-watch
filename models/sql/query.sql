@@ -86,3 +86,7 @@ SELECT scan($1, $2, $3, $4, $5, $6, $7);
 -- name: CreateScannerNotifs :many
 SELECT scanner_notifs($1, $2, $3);
 
+
+-- name: GetScanners :many
+SELECT * FROM scanners
+WHERE user_id = $1;

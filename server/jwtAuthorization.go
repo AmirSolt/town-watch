@@ -22,27 +22,56 @@ type JWT struct {
 	EXP int64  `json:"exp"`
 }
 
-func (server *Server) ValidateAutho(ginContext *gin.Context) (*models.User, error) {
+func (server *Server) ValidateUser(ginContext *gin.Context) {
 	// get it from cookie
 	tokenString, err := ginContext.Cookie("Authorization")
 	if err != nil {
-		return nil, fmt.Errorf("jwt not found on cookie: %w", err)
+		// fmt.Errorf("jwt not found on cookie: %w", err)
+		ginContext.Redirect(302, "/")
+		return
 	}
 
 	// parse and validate token
 	jwt, err := server.ParseJWT(tokenString)
 	if err != nil {
-		return nil, fmt.Errorf("jwt parse failed: %w", err)
+		// fmt.Errorf("jwt parse failed: %w", err)
+		ginContext.Redirect(302, "/")
+		return
 	}
 
 	// find user and check exp
 	user, err := server.ValidateJWTByUser(ginContext, jwt)
 	if err != nil {
-		return nil, fmt.Errorf("jwt validation by user failed: %w", err)
+		// fmt.Errorf("jwt validation by user failed: %w", err)
+		ginContext.Redirect(302, "/")
+		return
 	}
 
-	return user, nil
+	ginContext.Set("user", user)
+
+	ginContext.Next()
 }
+
+// func (server *Server) ValidateUser(ginContext *gin.Context) (*models.User, error) {
+// 	// get it from cookie
+// 	tokenString, err := ginContext.Cookie("Authorization")
+// 	if err != nil {
+// 		return nil, fmt.Errorf("jwt not found on cookie: %w", err)
+// 	}
+
+// 	// parse and validate token
+// 	jwt, err := server.ParseJWT(tokenString)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("jwt parse failed: %w", err)
+// 	}
+
+// 	// find user and check exp
+// 	user, err := server.ValidateJWTByUser(ginContext, jwt)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("jwt validation by user failed: %w", err)
+// 	}
+// 	return user, nil
+// }
 
 func (server *Server) SetJWT(ginContext *gin.Context, user *models.User) error {
 
@@ -86,7 +115,7 @@ func (server *Server) ValidateJWTByUser(ginContext *gin.Context, jwt *JWT) (*mod
 		Bytes: stringToByte16(jwt.ID),
 		Valid: true,
 	}
-	user, err := server.DB.queries.GetUser(context.Background(), UserID)
+	user, err := server.DB.Queries.GetUser(context.Background(), UserID)
 	if err != nil {
 		return nil, fmt.Errorf("error jwt user not found")
 	}

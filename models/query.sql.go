@@ -156,6 +156,42 @@ func (q *Queries) GetOTP(ctx context.Context, id pgtype.UUID) (Otp, error) {
 	return i, err
 }
 
+const getScanners = `-- name: GetScanners :many
+SELECT id, created_at, is_active, address, region, radius, point, lat, long, user_id FROM scanners
+WHERE user_id = $1
+`
+
+func (q *Queries) GetScanners(ctx context.Context, userID pgtype.UUID) ([]Scanner, error) {
+	rows, err := q.db.Query(ctx, getScanners, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Scanner
+	for rows.Next() {
+		var i Scanner
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.IsActive,
+			&i.Address,
+			&i.Region,
+			&i.Radius,
+			&i.Point,
+			&i.Lat,
+			&i.Long,
+			&i.UserID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUser = `-- name: GetUser :one
 SELECT id, tier, created_at, email, stripe_customer_id, stripe_subscription_id FROM users
 WHERE id = $1 LIMIT 1
