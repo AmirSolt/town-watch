@@ -19,13 +19,17 @@ type TierDisplay struct {
 }
 
 type UserSubscription struct {
-	Tier models.Tier
+	Tier                     models.Tier
+	PaymentMethodLast4Digits string
+	IsAuto                   bool
 }
 
 func (routes *Routes) wallet() {
 
 	userSubscription := UserSubscription{
-		Tier: models.TierT2,
+		Tier:                     models.TierT2,
+		PaymentMethodLast4Digits: "1234",
+		IsAuto:                   true,
 	}
 
 	var tierDisplays []TierDisplay
