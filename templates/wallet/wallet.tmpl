@@ -1,0 +1,16 @@
+{{template "header.tmpl" .}}
+
+<h1>
+    Tiers
+</h1>
+<p>
+    tiers you can asd
+</p>
+
+<!-- dict "TierConfig" $t "UserSubscription" $.data.UserSubscription -->
+
+{{ range $i, $t := .data.TierDisplays }}
+    {{template "tier.tmpl" $t }}
+{{ end }}
+
+{{template "footer.tmpl"}}

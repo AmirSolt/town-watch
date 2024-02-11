@@ -21,14 +21,20 @@ import (
 )
 
 type TierConfig struct {
-	tier     models.Tier
-	name     string
-	interval string
-	amount   int64
+	Tier     models.Tier
+	Name     string
+	Interval string
+	Amount   int64
 }
 
 func (server *Server) loadPayment() {
 
+	// server.loadStripe()
+	server.loadPaymentConfig()
+
+}
+
+func (server *Server) loadStripe() {
 	// stripe key
 	stripe.Key = server.Env.STRIPE_PRIVATE_KEY
 
@@ -49,26 +55,28 @@ func (server *Server) loadPayment() {
 	if err != nil {
 		log.Fatalln("Error: init stripe webhook events: %w", err)
 	}
+}
 
+func (server *Server) loadPaymentConfig() {
 	// TierConfig
 	m := make(map[models.Tier]TierConfig)
 	m[models.TierT0] = TierConfig{
-		tier:     models.TierT0,
-		name:     "Free",
-		interval: "never",
-		amount:   0,
+		Tier:     models.TierT0,
+		Name:     "Free",
+		Interval: "never",
+		Amount:   0,
 	}
 	m[models.TierT1] = TierConfig{
-		tier:     models.TierT1,
-		name:     "Monthly",
-		interval: "month",
-		amount:   1000,
+		Tier:     models.TierT1,
+		Name:     "Monthly",
+		Interval: "month",
+		Amount:   1000,
 	}
 	m[models.TierT2] = TierConfig{
-		tier:     models.TierT2,
-		name:     "Yearly",
-		interval: "year",
-		amount:   10000,
+		Tier:     models.TierT2,
+		Name:     "Yearly",
+		Interval: "year",
+		Amount:   10000,
 	}
 	server.TierConfigs = m
 }
@@ -135,10 +143,10 @@ func (server *Server) createCheckoutSession(user *models.User, tierConfig TierCo
 				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
 					Currency: stripe.String(string(stripe.CurrencyUSD)),
 					ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
-						Name: stripe.String(tierConfig.name),
+						Name: stripe.String(tierConfig.Name),
 					},
 					Recurring: &stripe.CheckoutSessionLineItemPriceDataRecurringParams{
-						Interval:      stripe.String(tierConfig.interval),
+						Interval:      stripe.String(tierConfig.Interval),
 						IntervalCount: stripe.Int64(1),
 					},
 					UnitAmount: stripe.Int64(getNewUnitAmount(server.TierConfigs[user.Tier], tierConfig)),
@@ -146,7 +154,7 @@ func (server *Server) createCheckoutSession(user *models.User, tierConfig TierCo
 				Quantity: stripe.Int64(1),
 			},
 		},
-		Metadata: map[string]string{"tier": string(tierConfig.tier)},
+		Metadata: map[string]string{"tier": string(tierConfig.Tier)},
 	}
 
 	result, err := session.New(params)
@@ -168,7 +176,7 @@ func (server *Server) createCheckoutSession(user *models.User, tierConfig TierCo
 }
 
 func getNewUnitAmount(currentTierConfig TierConfig, targetTierConfig TierConfig) int64 {
-	newCost := targetTierConfig.amount - currentTierConfig.amount
+	newCost := targetTierConfig.Amount - currentTierConfig.Amount
 	if newCost < 0 {
 		newCost = 0
 	}

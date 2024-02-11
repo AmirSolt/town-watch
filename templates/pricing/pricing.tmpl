@@ -1,0 +1,57 @@
+{{template "header.tmpl" .}}
+
+<h2>
+    Choose a subscription plan that works for you
+</h2>
+<h3>
+    All of your plans include
+</h3>
+<ul>
+    <li>
+        Option 
+    </li>
+    <li>
+        Option 
+    </li>
+    <li>
+        Option 
+    </li>
+</ul>
+
+
+<div>
+    <h1>
+        12 Month Plan
+    </h1>
+    <hr>
+    <h2>
+        $7.99/Month + tax
+    </h2>
+    <h1 id="save">
+        SAVE %50
+    </h1>
+
+    <p>
+        Total: $96 + tax
+    </p>
+    <a href="/checkout/{{.data.Tier2}}" class="btn btn-nrm" type="submit">
+        Next
+    </a>
+</div>
+
+
+<div>
+    <h1>
+        Monthly Plan
+    </h1>
+    <hr>
+    <h2>
+        $15.99/Month + tax
+    </h2>
+
+    <a href="/checkout/{{.data.Tier1}}" class="btn btn-nrm" type="submit">
+        Next
+    </a>
+</div>
+
+{{template "footer.tmpl"}}

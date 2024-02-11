@@ -1,0 +1,38 @@
+{{template "header.tmpl" .}}
+
+
+<h1>
+    Notification
+</h1>
+<p>
+    notificaiton sent to you
+</p>
+<!-- ======================== -->
+<div>
+    <h2>Scanner:</h2>
+    <p>{{.data.Scanner.Address}}</p>
+    
+    <label class="toggle">
+        <span>Online</span>
+        <input type="checkbox"  {{if .data.Scanner.IsActive}}checked{{end}} disabled>
+    </label>
+</div>
+<!-- ======================== -->
+
+<div id="map">
+
+<!-- ======================== -->
+
+<h1>
+    Reports
+</h1>
+<p>
+    reports on this map
+</p>
+{{ range $i, $r := .data.Reports }}
+    {{template "report.tmpl" $r}}
+{{ end }}
+
+
+
+{{template "footer.tmpl"}}

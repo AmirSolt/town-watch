@@ -17,7 +17,7 @@ func main() {
 	routes.LoadRoutes(&server)
 
 	fmt.Println("=======")
-	fmt.Println("http://localhost:8080")
+	fmt.Println("http://localhost:3000")
 	fmt.Println("=======")
 
 	server.Engine.Run()

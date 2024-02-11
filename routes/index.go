@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type index struct {
+type indexLoad struct {
 	pageLoad
 	Scanners *[]models.Scanner
 }
@@ -17,9 +17,9 @@ func (routes *Routes) index() {
 	routes.server.Engine.GET("/", func(c *gin.Context) {
 
 		c.HTML(http.StatusOK, "index.tmpl", gin.H{
-			"data": index{
+			"data": indexLoad{
 				pageLoad: pageLoad{
-					Title: "Index asd",
+					Title: "Home",
 				},
 				Scanners: &[]models.Scanner{
 					{
