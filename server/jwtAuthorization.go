@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/AmirSolt/town-watch/models"
@@ -22,58 +21,47 @@ type JWT struct {
 	EXP int64  `json:"exp"`
 }
 
-func (server *Server) ValidateUser(ginContext *gin.Context) {
-	// get it from cookie
-	tokenString, err := ginContext.Cookie("Authorization")
-	if err != nil {
-		// fmt.Errorf("jwt not found on cookie: %w", err)
-		ginContext.Redirect(302, "/")
-		return
-	}
+func (server *Server) OptionalUserMiddleware(ginContext *gin.Context) {
+	user, _ := server.ValidateUser(ginContext)
 
-	// parse and validate token
-	jwt, err := server.ParseJWT(tokenString)
-	if err != nil {
-		// fmt.Errorf("jwt parse failed: %w", err)
-		ginContext.Redirect(302, "/")
-		return
-	}
+	ginContext.Set("user", user)
+	ginContext.Next()
+}
 
-	// find user and check exp
-	user, err := server.ValidateJWTByUser(ginContext, jwt)
+func (server *Server) RequireUserMiddleware(ginContext *gin.Context) {
+	user, err := server.ValidateUser(ginContext)
 	if err != nil {
-		// fmt.Errorf("jwt validation by user failed: %w", err)
+		// fmt.Errorf(": %w", err)
 		ginContext.Redirect(302, "/")
 		return
 	}
 
 	ginContext.Set("user", user)
-
 	ginContext.Next()
 }
 
-// func (server *Server) ValidateUser(ginContext *gin.Context) (*models.User, error) {
-// 	// get it from cookie
-// 	tokenString, err := ginContext.Cookie("Authorization")
-// 	if err != nil {
-// 		return nil, fmt.Errorf("jwt not found on cookie: %w", err)
-// 	}
+func (server *Server) ValidateUser(ginContext *gin.Context) (*models.User, error) {
+	// get it from cookie
+	tokenString, err := ginContext.Cookie("Authorization")
+	if err != nil {
+		return nil, fmt.Errorf("jwt not found on cookie: %w", err)
+	}
 
-// 	// parse and validate token
-// 	jwt, err := server.ParseJWT(tokenString)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("jwt parse failed: %w", err)
-// 	}
+	// parse and validate token
+	jwt, err := server.ParseJWT(tokenString)
+	if err != nil {
+		return nil, fmt.Errorf("jwt parse failed: %w", err)
+	}
 
-// 	// find user and check exp
-// 	user, err := server.ValidateJWTByUser(ginContext, jwt)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("jwt validation by user failed: %w", err)
-// 	}
-// 	return user, nil
-// }
+	// find user and check exp
+	user, err := server.ValidateJWTByUser(ginContext, jwt)
+	if err != nil {
+		return nil, fmt.Errorf("jwt validation by user failed: %w", err)
+	}
+	return user, nil
+}
 
-func (server *Server) SetJWT(ginContext *gin.Context, user *models.User) error {
+func (server *Server) SetJWTCookie(ginContext *gin.Context, user *models.User) error {
 
 	jwt := JWT{
 		ID:  string(user.ID.Bytes[:]),
@@ -87,10 +75,16 @@ func (server *Server) SetJWT(ginContext *gin.Context, user *models.User) error {
 	}
 
 	// attach to cookie
-	ginContext.SetSameSite(http.SameSiteLaxMode)
+	// ginContext.SetSameSite(http.SameSiteLaxMode)
 	ginContext.SetCookie("Authorization", string(jwtEncrypted), jwtExpirationDurationSeconds, "/", "", true, true)
 
 	return nil
+}
+
+func (server *Server) removeJWTCookie(ginContext *gin.Context) {
+
+	ginContext.SetCookie("Authorization", "", jwtExpirationDurationSeconds, "/", "", true, true)
+
 }
 
 func (server *Server) ParseJWT(jwtEncrypted string) (*JWT, error) {

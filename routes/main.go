@@ -19,13 +19,11 @@ func LoadRoutes(server *server.Server) *Routes {
 	routes := Routes{
 		server: server,
 	}
-	routes.index()
-	routes.join()
-	routes.joinVerify()
-	routes.pricing()
-	routes.checkout()
-	routes.notif()
-	routes.wallet()
+	routes.indexRoutes()
+	routes.joinRoutes()
+	routes.pricingRoutes()
+	routes.notifRoutes()
+	routes.walletRoutes()
 
 	return &routes
 }

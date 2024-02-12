@@ -13,6 +13,10 @@ type notifLoad struct {
 	Reports *[]models.Report
 }
 
+func (routes *Routes) notifRoutes() {
+	routes.notif()
+}
+
 func (routes *Routes) notif() {
 
 	routes.server.Engine.GET("/notif/:id", func(c *gin.Context) {

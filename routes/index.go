@@ -15,19 +15,35 @@ type indexLoad struct {
 	Scanners *[]models.Scanner
 }
 
+func (routes *Routes) indexRoutes() {
+	routes.index()
+}
+
 func (routes *Routes) index() {
 
 	routes.server.Engine.GET("/",
-		routes.server.ValidateUser,
+		routes.server.OptionalUserMiddleware,
 		func(c *gin.Context) {
 
-			tempUser, _ := c.Get("user")
+			tempUser, exists := c.Get("user")
+			if !exists {
+				fmt.Errorf("'user' key/value doesn't exist")
+			}
 			user := (tempUser).(*models.User)
 
-			scanners, err := routes.server.DB.Queries.GetScanners(context.Background(), user.ID)
-			if err != nil && err != sql.ErrNoRows {
-				fmt.Errorf("scanner lookup failed: %w", err)
-				return
+			fmt.Println("===========================")
+			fmt.Println("'user':%w", user == nil)
+			fmt.Println("===========================")
+
+			var scanners []models.Scanner
+			var err error
+
+			if user != nil {
+				scanners, err = routes.server.DB.Queries.GetScanners(context.Background(), user.ID)
+				if err != nil && err != sql.ErrNoRows {
+					// fmt.Errorf("scanner lookup failed: %w", err)
+					return
+				}
 			}
 
 			c.HTML(http.StatusOK, "index.tmpl", gin.H{

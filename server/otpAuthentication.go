@@ -16,64 +16,49 @@ const otpRetryExpirationDurationSeconds = 10 // 10 sec
 
 func (server *Server) InitOTP(email string) error {
 
-	var user models.User
-	var err error
-
-	user, err = server.DB.Queries.GetUserByEmail(context.Background(), email)
-	if err != nil && err != sql.ErrNoRows {
-		return fmt.Errorf("error user email lookup: %w", err)
-	}
-
-	if err == sql.ErrNoRows {
-		user, err = server.DB.Queries.CreateUser(context.Background(), email)
-		if err != nil {
-			return fmt.Errorf("error user creation: %w", err)
-		}
-	}
-
-	otp, err := server.DB.Queries.CreateOTP(context.Background(), models.CreateOTPParams{
-		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(time.Second * otpExpirationDurationSeconds).UTC(), Valid: true},
-		IsActive:  true,
-		UserID:    user.ID,
-	})
+	user, err := server.findOrCreateUser(email)
 	if err != nil {
-		return fmt.Errorf("error OTP creation: %w", err)
+		return err
+	}
+	otp, err := server.createOTP(user)
+	if err != nil {
+		return err
 	}
 
-	errEmail := server.SendOTPEmail(&user, &otp)
+	errEmail := server.sendOTPEmail(user, otp)
 	if errEmail != nil {
 		return errEmail
 	}
 	return nil
 }
 
-func (server *Server) SendOTPEmail(user *models.User, otp *models.Otp) error {
-	content := "content" + string(otp.ID.Bytes[:])
-	errEmail := server.SendEmail(user.Email, "User", "Town Watch", "Email Verification Link", content)
-	if errEmail != nil {
-		return fmt.Errorf("error OTP email could not be sent: %w", errEmail)
-	}
-	return nil
-}
-
 func (server *Server) ResendOTP(email string) error {
+
+	// find user
 	user, err := server.DB.Queries.GetUserByEmail(context.Background(), email)
 	if err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("error user email lookup: %w", err)
 	}
 
+	// =======================
+	// make sure last otp happened before otpRetryExpirationDurationSeconds ago
 	lastOTP, err := server.DB.Queries.GetLatestOTPByUser(context.Background(), user.ID)
 	if err != nil && err != sql.ErrNoRows {
 		return fmt.Errorf("error latest otp lookup: %w", err)
 	}
-
 	if time.Now().Add(-time.Second * otpRetryExpirationDurationSeconds).UTC().Before(lastOTP.CreatedAt.Time) {
 		return fmt.Errorf("you have to wait %v after sending OTP: %w", otpRetryExpirationDurationSeconds, err)
 	}
+	// =======================
 
-	errOTP := server.InitOTP(email)
-	if errOTP != nil {
-		return fmt.Errorf("error resend InitOTP: %w", errOTP)
+	otp, err := server.createOTP(&user)
+	if err != nil {
+		return err
+	}
+
+	errEmail := server.sendOTPEmail(&user, otp)
+	if errEmail != nil {
+		return errEmail
 	}
 
 	return nil
@@ -81,6 +66,7 @@ func (server *Server) ResendOTP(email string) error {
 
 func (server *Server) ValidateOTP(ginContext *gin.Context, otpId string) error {
 
+	// Find OTP
 	otp, err := server.DB.Queries.GetOTP(context.Background(), pgtype.UUID{Bytes: stringToByte16(otpId), Valid: true})
 	if err != nil {
 		return fmt.Errorf("error OTP lookup: %w", err)
@@ -89,7 +75,6 @@ func (server *Server) ValidateOTP(ginContext *gin.Context, otpId string) error {
 	if !otp.IsActive {
 		return fmt.Errorf("error OTP is not active: %w", err)
 	}
-
 	defer server.deactivateOTP(&otp)
 
 	if time.Now().UTC().After(otp.ExpiresAt.Time) {
@@ -110,8 +95,54 @@ func (server *Server) ValidateOTP(ginContext *gin.Context, otpId string) error {
 		return fmt.Errorf("otp does not match latest user otp: %w", err)
 	}
 
-	server.SetJWT(ginContext, &user)
+	server.SetJWTCookie(ginContext, &user)
 
+	return nil
+}
+
+func (server *Server) Signout(ginContext *gin.Context) {
+	server.removeJWTCookie(ginContext)
+}
+
+// =====================================================================
+
+func (server *Server) findOrCreateUser(email string) (*models.User, error) {
+	var user models.User
+	var err error
+
+	user, err = server.DB.Queries.GetUserByEmail(context.Background(), email)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, fmt.Errorf("error user email lookup: %w", err)
+	}
+
+	if err == sql.ErrNoRows {
+		user, err = server.DB.Queries.CreateUser(context.Background(), email)
+		if err != nil {
+			return nil, fmt.Errorf("error user creation: %w", err)
+		}
+	}
+
+	return &user, nil
+}
+
+func (server *Server) createOTP(user *models.User) (*models.Otp, error) {
+	otp, err := server.DB.Queries.CreateOTP(context.Background(), models.CreateOTPParams{
+		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(time.Second * otpExpirationDurationSeconds).UTC(), Valid: true},
+		IsActive:  true,
+		UserID:    user.ID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error OTP creation: %w", err)
+	}
+	return &otp, nil
+}
+
+func (server *Server) sendOTPEmail(user *models.User, otp *models.Otp) error {
+	content := "content" + string(otp.ID.Bytes[:])
+	errEmail := server.SendEmail(user.Email, "User", "Town Watch", "Email Verification Link", content)
+	if errEmail != nil {
+		return fmt.Errorf("error OTP email could not be sent: %w", errEmail)
+	}
 	return nil
 }
 
@@ -122,48 +153,3 @@ func (server *Server) deactivateOTP(otp *models.Otp) error {
 	}
 	return nil
 }
-
-// func (server *Server) Signup(ginContext *gin.Context, email string, password string) (*models.User, error) {
-
-// 	if len(password) < minPasswordLen {
-// 		return nil, fmt.Errorf("signup error: password must bigger than %v charachters", minPasswordLen)
-// 	}
-
-// 	hashedPassword, err := hashPassword(password, server.Env.PASSWORD_HASHING_SALT)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	user, err := server.DB.Queries.CreateUser(context.Background(), models.CreateUserParams{Email: email, HashedPassword: string(hashedPassword)})
-// 	if err != nil {
-// 		return nil, fmt.Errorf("signup error: %w", err)
-// 	}
-
-// 	errJWT := setJWT(ginContext, &user, server.Env.JWE_SECRET_KEY)
-// 	if errJWT != nil {
-// 		return nil, errJWT
-// 	}
-
-// 	return &user, nil
-// }
-
-// func (server *Server) Login(ginContext *gin.Context, email string, password string) (*models.User, error) {
-
-// 	user, err := server.DB.Queries.GetUserByEmail(context.Background(), email)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("login error: Invalid email/password")
-// 	}
-
-// 	errCompare := compareToHashedPassword(&user, password, server.Env.PASSWORD_HASHING_SALT)
-// 	if errCompare != nil {
-// 		return nil, fmt.Errorf("login error: Invalid email/password")
-// 	}
-
-// 	errJWT := setJWT(ginContext, &user, server.Env.JWE_SECRET_KEY)
-// 	if errJWT != nil {
-// 		return nil, errJWT
-// 	}
-
-// 	return &user, nil
-
-// }

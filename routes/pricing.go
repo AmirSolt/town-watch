@@ -13,6 +13,11 @@ type pricingLoad struct {
 	Tier2 models.Tier
 }
 
+func (routes *Routes) pricingRoutes() {
+	routes.pricing()
+	routes.checkout()
+}
+
 func (routes *Routes) pricing() {
 
 	routes.server.Engine.GET("/pricing", func(c *gin.Context) {

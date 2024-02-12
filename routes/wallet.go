@@ -24,6 +24,10 @@ type UserSubscription struct {
 	IsAuto                   bool
 }
 
+func (routes *Routes) walletRoutes() {
+	routes.wallet()
+}
+
 func (routes *Routes) wallet() {
 
 	userSubscription := UserSubscription{
